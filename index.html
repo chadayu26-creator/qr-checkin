@@ -680,15 +680,24 @@ async function tryZxing() {
   }
 }
 
-// ─── Engine 3: getUserMedia + BarcodeDetector/Canvas (PC/fallback) ───
+// ─── Engine 3: getUserMedia + BarcodeDetector + ZXing canvas (PC/fallback) ───
 async function tryGetUserMedia() {
   if (!navigator.mediaDevices?.getUserMedia) return false;
-  const constraints = [
-    { video: { facingMode: 'environment', width:{ideal:1280}, height:{ideal:720} }, audio: false },
-    { video: { facingMode: 'environment' }, audio: false },
-    { video: { facingMode: { ideal:'environment' } }, audio: false },
-    { video: true, audio: false },
-  ];
+
+  // PC ไม่มี environment camera → ลอง any ก่อน
+  const isDesktop = !/Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+  const constraints = isDesktop
+    ? [
+        { video: { width:{ideal:1280}, height:{ideal:720}, frameRate:{ideal:30} }, audio: false },
+        { video: { width:{ideal:640},  height:{ideal:480} }, audio: false },
+        { video: true, audio: false },
+      ]
+    : [
+        { video: { facingMode:'environment', width:{ideal:1280}, height:{ideal:720} }, audio: false },
+        { video: { facingMode:'environment' }, audio: false },
+        { video: true, audio: false },
+      ];
+
   let stream = null;
   for (const c of constraints) {
     try { stream = await navigator.mediaDevices.getUserMedia(c); break; }
@@ -698,18 +707,51 @@ async function tryGetUserMedia() {
 
   // inject video
   const readerDiv = document.getElementById('qr-reader');
-  if (readerDiv) readerDiv.innerHTML = '<video id="gum-video" style="width:100%;height:100%;object-fit:cover;border-radius:16px" autoplay playsinline muted></video>';
+  if (readerDiv) readerDiv.innerHTML =
+    '<video id="gum-video" style="width:100%;height:100%;object-fit:cover;border-radius:16px" autoplay playsinline muted></video>';
 
   const vid = document.getElementById('gum-video');
   vid.srcObject = stream;
   vid.muted = true;
-  await new Promise(res => { vid.onloadedmetadata = res; setTimeout(res,3000); });
+  await new Promise(res => {
+    vid.onloadedmetadata = () => res();
+    setTimeout(res, 4000);
+  });
   await vid.play().catch(()=>{});
 
-  // เลือก decode engine
-  try { nativeDetector = new BarcodeDetector({ formats:['qr_code'] }); } catch(e){ nativeDetector = null; }
+  // ─── เลือก decoder ที่ดีที่สุดที่มี ───
+  // Priority: BarcodeDetector → ZXing → jsQR
+  let decoder = 'none';
+
+  try {
+    nativeDetector = new BarcodeDetector({ formats:['qr_code'] });
+    decoder = 'barcode';
+    console.log('PC decoder: BarcodeDetector');
+  } catch(e) { nativeDetector = null; }
+
+  // ZXing reader สำหรับ canvas decode
+  let zxReader = null;
+  if (decoder === 'none' && typeof ZXingBrowser !== 'undefined') {
+    try {
+      zxReader = new ZXingBrowser.BrowserQRCodeReader();
+      decoder = 'zxing-canvas';
+      console.log('PC decoder: ZXing canvas');
+    } catch(e) {}
+  }
+
+  // jsQR (load dynamically ถ้าไม่มีตัวอื่น)
+  if (decoder === 'none' && typeof jsQR === 'undefined') {
+    try {
+      await loadScript('https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js');
+      decoder = 'jsqr';
+      console.log('PC decoder: jsQR');
+    } catch(e) {}
+  } else if (decoder === 'none' && typeof jsQR !== 'undefined') {
+    decoder = 'jsqr';
+  }
+
   scanCanvas = document.createElement('canvas');
-  scanCtx    = scanCanvas.getContext('2d', { willReadFrequently:true });
+  scanCtx    = scanCanvas.getContext('2d', { willReadFrequently: true });
 
   scanning = true;
   if (scanLine) scanLine.style.display = 'block';
@@ -717,32 +759,66 @@ async function tryGetUserMedia() {
   scanStatusEl.textContent = '🔍 กำลังสแกน...';
   toast('เปิดกล้องแล้ว', 'ok');
 
-  // loop
   let processing = false;
+  let frameCount = 0;
+
   const loop = async () => {
     if (!scanning) return;
-    if (!processing && vid.readyState >= 2) {
+
+    frameCount++;
+    // BarcodeDetector: ทุก frame  |  ZXing/jsQR: ทุก 3 frame (ลด CPU)
+    const interval = (decoder === 'barcode') ? 1 : 3;
+
+    if (frameCount % interval === 0 && !processing && vid.readyState >= 2) {
       processing = true;
       try {
-        if (nativeDetector) {
+        const vw = vid.videoWidth  || 640;
+        const vh = vid.videoHeight || 480;
+
+        if (decoder === 'barcode') {
+          // ── BarcodeDetector (Chrome/Edge) ──
           const codes = await nativeDetector.detect(vid);
           if (codes?.length) await handleDecoded(codes[0].rawValue.trim());
-        } else {
-          // canvas fallback
-          scanCanvas.width  = vid.videoWidth  || 640;
-          scanCanvas.height = vid.videoHeight || 480;
-          scanCtx.drawImage(vid, 0, 0);
+
+        } else if (decoder === 'zxing-canvas' && zxReader) {
+          // ── ZXing decode จาก canvas ──
+          scanCanvas.width  = vw;
+          scanCanvas.height = vh;
+          scanCtx.drawImage(vid, 0, 0, vw, vh);
+          try {
+            const result = await zxReader.decodeFromCanvas(scanCanvas);
+            if (result) await handleDecoded(result.getText().trim());
+          } catch(e) { /* ไม่เจอ QR — ปกติ */ }
+
+        } else if (decoder === 'jsqr') {
+          // ── jsQR (Firefox/Safari PC) ──
+          scanCanvas.width  = vw;
+          scanCanvas.height = vh;
+          scanCtx.drawImage(vid, 0, 0, vw, vh);
+          const imgData = scanCtx.getImageData(0, 0, vw, vh);
+          const code    = jsQR(imgData.data, vw, vh, { inversionAttempts: 'dontInvert' });
+          if (code?.data) await handleDecoded(code.data.trim());
         }
-      } catch(e){}
+      } catch(e) {}
       processing = false;
     }
+
     rafId = requestAnimationFrame(loop);
   };
   rafId = requestAnimationFrame(loop);
 
-  // เก็บ stream reference สำหรับ close
   window.__gumStream = stream;
   return true;
+}
+
+// โหลด script แบบ dynamic
+function loadScript(src) {
+  return new Promise((resolve, reject) => {
+    if (document.querySelector('script[src="' + src + '"]')) return resolve();
+    const s = document.createElement('script');
+    s.src = src; s.onload = resolve; s.onerror = reject;
+    document.head.appendChild(s);
+  });
 }
 
 async function closeCamera() {
