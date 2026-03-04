@@ -469,8 +469,7 @@ let barcodeDetector = null;
 let zxingReader     = null;
 let rafId           = null;
 
-// set เก็บ qr ที่แจ้งเตือน duplicate ไปแล้ว (reset เมื่อเปลี่ยนฐาน)
-const shownDupWarning = new Set();
+const videoEl      = document.getElementById('video');
 const scanStatusEl = document.getElementById('scanStatus');
 const scanLine     = document.getElementById('scanLine');
 
@@ -509,7 +508,6 @@ function renderStations() {
 
 window.selectStation = function (station_id) {
   selectedStation = stations.find(s => s.station_id === station_id) || null;
-  shownDupWarning.clear(); // reset เมื่อเปลี่ยนฐาน
   updateStationUI();
   renderStations();
   toast('เลือกฐาน: ' + (selectedStation?.station_name || ''), 'ok');
@@ -550,9 +548,7 @@ async function openCamera() {
   if (stream) { try { stream.getTracks().forEach(t => t.stop()); } catch (e) {} stream = null; }
 
   const constraints = [
-    // ✅ 720p เหมาะสุด — คมพอ QR อ่านได้ แต่ไม่หนักเกินไป
-    { video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 30, min: 15 } }, audio: false },
-    { video: { facingMode: 'environment', width: { ideal: 640  }, height: { ideal: 480 }, frameRate: { ideal: 30 } }, audio: false },
+    { video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false },
     { video: { facingMode: 'environment' }, audio: false },
     { video: { facingMode: { ideal: 'environment' } }, audio: false },
     { video: true, audio: false },
@@ -616,73 +612,25 @@ async function toggleTorch() {
 }
 
 // ═══════════════════════════════════════════════════════════
-// SCANNER ENGINES — High Performance
+// SCANNER ENGINES
 // ═══════════════════════════════════════════════════════════
-
-// Canvas สำหรับ capture frame (ใช้ซ้ำ ไม่สร้างใหม่ทุกครั้ง)
-let scanCanvas = null;
-let scanCtx    = null;
-let frameSkip  = 0; // สำหรับ throttle ZXing
-
 function initScannerEngines() {
-  // BarcodeDetector (Chrome/Edge Android — เร็วที่สุด)
-  try {
-    barcodeDetector = 'BarcodeDetector' in window
-      ? new BarcodeDetector({ formats: ['qr_code'] })
-      : null;
-  } catch (e) { barcodeDetector = null; }
-
-  // ZXing (iOS Safari + ทุกเบราว์เซอร์ที่ไม่มี BarcodeDetector)
-  try {
-    if (window.ZXingBrowser) {
-      // เปิด TryHarder เพื่อให้อ่าน QR ได้ดีขึ้นบน iOS
-      const hints = new Map();
-      hints.set(3, true); // DecodeHintType.TRY_HARDER
-      zxingReader = new window.ZXingBrowser.BrowserQRCodeReader(hints);
-    } else {
-      zxingReader = null;
-    }
-  } catch (e) {
-    // ลอง init โดยไม่มี hints
-    try { zxingReader = new window.ZXingBrowser.BrowserQRCodeReader(); }
-    catch (e2) { zxingReader = null; }
-  }
-
-  // canvas (ใช้ใน native loop)
-  scanCanvas = document.createElement('canvas');
-  scanCtx    = scanCanvas.getContext('2d', { willReadFrequently: true });
+  try { barcodeDetector = 'BarcodeDetector' in window ? new BarcodeDetector({ formats: ['qr_code'] }) : null; }
+  catch (e) { barcodeDetector = null; }
+  try { zxingReader = window.ZXingBrowser ? new window.ZXingBrowser.BrowserQRCodeReader() : null; }
+  catch (e) { zxingReader = null; }
 }
 
 function startScanLoop() {
   if (scanning) return;
   if (!stream) { toast('เปิดกล้องก่อน', 'warn'); return; }
-  scanning  = true;
-  frameSkip = 0;
+  scanning = true;
   scanStatusEl.textContent = '🔍 กำลังสแกน...';
   if (scanLine) scanLine.style.display = 'block';
-
-  if (barcodeDetector) {
-    console.log('Scanner: BarcodeDetector (native)');
-    runNativeLoop();
-    return;
-  }
-  if (zxingReader) {
-    console.log('Scanner: ZXing fallback');
-    runZxingLoop();
-    return;
-  }
-
-  // ไม่รองรับทั้งคู่
+  if (barcodeDetector) { runNativeLoop(); return; }
+  if (zxingReader)     { runZxingLoop();  return; }
+  toast('ไม่รองรับตัวสแกน QR ในเบราว์เซอร์นี้', 'err');
   scanning = false;
-  if (scanLine) scanLine.style.display = 'none';
-  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-  if (isIOS) {
-    toast('กรุณาเปิดด้วย Safari บน iOS', 'err');
-    scanStatusEl.textContent = '❌ กรุณาเปิดด้วย Safari';
-  } else {
-    toast('เบราว์เซอร์นี้ไม่รองรับสแกน QR', 'err');
-    scanStatusEl.textContent = '❌ ไม่รองรับสแกน QR';
-  }
 }
 
 function stopScanLoop() {
@@ -692,48 +640,31 @@ function stopScanLoop() {
   if (scanLine) scanLine.style.display = 'none';
 }
 
-// ── Native BarcodeDetector loop (เร็วที่สุด ~60fps) ──
 async function runNativeLoop() {
-  let processing = false; // กัน overlap
-
   const loop = async () => {
     if (!scanning || !barcodeDetector) return;
-
-    if (!processing && videoEl.readyState === 4) {
-      processing = true;
-      try {
-        const codes = await barcodeDetector.detect(videoEl);
-        if (codes?.length) {
-          const raw = (codes[0].rawValue || '').trim();
-          if (raw) await handleDecoded(raw);
-        }
-      } catch (e) {}
-      processing = false;
-    }
-
+    try {
+      const codes = await barcodeDetector.detect(videoEl);
+      if (codes?.length) {
+        const raw = (codes[0].rawValue || '').trim();
+        if (raw) await handleDecoded(raw);
+      }
+    } catch (e) {}
     rafId = requestAnimationFrame(loop);
   };
   rafId = requestAnimationFrame(loop);
 }
 
-// ── ZXing loop — รองรับ iOS Safari + Android ทุกเบราว์เซอร์ ──
 function runZxingLoop() {
-  if (!zxingReader) {
-    toast('ไม่รองรับตัวสแกน QR ในเบราว์เซอร์นี้', 'err');
-    scanning = false;
-    return;
-  }
   try {
-    zxingReader.decodeFromVideoElementContinuously(videoEl, async (result, err) => {
+    zxingReader.decodeFromVideoElementContinuously(videoEl, async (result) => {
       if (!scanning) return;
       if (result) {
         const raw = String(result.getText() || '').trim();
         if (raw) await handleDecoded(raw);
       }
-      // err ปกติจะเกิดทุก frame ที่ไม่เจอ QR — ไม่ต้องแสดง
     });
   } catch (e) {
-    console.error('ZXing error:', e);
     toast('ZXing เริ่มสแกนไม่สำเร็จ', 'err');
     scanning = false;
   }
@@ -744,8 +675,7 @@ function runZxingLoop() {
 // ═══════════════════════════════════════════════════════════
 async function handleDecoded(qr) {
   const now = Date.now();
-  // ลด debounce จาก 2500ms → 1500ms เพื่อความเร็ว
-  if (lastHit.qr === qr && (now - lastHit.t) < 1500) return;
+  if (lastHit.qr === qr && (now - lastHit.t) < 2500) return;
   lastHit = { qr, t: now };
   if (!selectedStation) { toast('ยังไม่เลือกฐาน', 'warn'); return; }
 
