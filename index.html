@@ -217,19 +217,8 @@
       border-radius: 14px; padding: 12px; margin-bottom: 10px; display: none;
     }
 
-    /* ── Config Banner ── */
-    #configBanner {
-      background: #eff6ff; border: 2px solid #93c5fd;
-      border-radius: 14px; padding: 14px; margin-bottom: 12px;
-    }
-    #configBanner h3 { font-weight: 800; color: #1d4ed8; margin-bottom: 8px; font-size: .95rem; }
-    #configBanner input {
-      width: 100%; border: 2px solid #93c5fd; border-radius: 12px;
-      padding: 8px 12px; font-family: 'Prompt', sans-serif;
-      font-size: .85rem; outline: none; margin-top: 4px;
-    }
-    #configBanner input:focus { border-color: var(--indigo); }
-    #configBanner p { font-size: .75rem; color: #3b82f6; margin-top: 5px; }
+    /* ── Config Banner (ซ่อน) ── */
+    #configBanner { display: none; }
 
     /* Loading overlay */
     #loadingOverlay {
@@ -387,42 +376,12 @@
 // ═══════════════════════════════════════════════════════════
 // CONFIG — แก้ไข GAS_URL หรือกรอกในช่อง input บนหน้าจอ
 // ═══════════════════════════════════════════════════════════
-const STORAGE_KEY = 'qr_checkin_gas_url';
+// ✅ GAS URL ฝังตายตัว — ไม่ต้องตั้งค่า
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbzY6gC2y9UdKosuARHRoFW-lpXhjnC8Q3-5jLrLMHGIlEJwFmp2X-qCbdX0RVDlllD2jQ/exec';
 
-function getGasUrl() {
-  return localStorage.getItem(STORAGE_KEY) || '';
-}
-function saveGasUrl() {
-  const url = document.getElementById('gasUrlInput').value.trim();
-  if (!url || !url.startsWith('https://script.google.com')) {
-    toast('URL ไม่ถูกต้อง ต้องขึ้นต้นด้วย https://script.google.com', 'err');
-    return;
-  }
-  localStorage.setItem(STORAGE_KEY, url);
-  toast('บันทึก URL แล้ว ✅', 'ok');
-  document.getElementById('connStatus').textContent = '';
-  loadStations();
-}
-
-async function testConnection() {
-  const url = document.getElementById('gasUrlInput').value.trim() || getGasUrl();
-  if (!url) { toast('กรอก URL ก่อน', 'warn'); return; }
-  const el = document.getElementById('connStatus');
-  el.textContent = '🔄 กำลังทดสอบ...';
-  el.style.color = '#64748b';
-  try {
-    const r = await gasGet('ping', url);
-    if (r.success) {
-      el.textContent = '✅ เชื่อมต่อสำเร็จ! Server: ' + (r.server_time || '');
-      el.style.color = '#16a34a';
-    } else {
-      throw new Error('not ok');
-    }
-  } catch(e) {
-    el.textContent = '❌ เชื่อมต่อไม่สำเร็จ ตรวจสอบ URL และ Deploy settings';
-    el.style.color = '#dc2626';
-  }
-}
+function getGasUrl() { return GAS_URL; }
+function saveGasUrl() {}
+function testConnection() {}
 
 // ═══════════════════════════════════════════════════════════
 // API — fetch ไปหา GAS (แทน google.script.run)
@@ -556,12 +515,6 @@ window.selectStation = function (station_id) {
 };
 
 async function loadStations() {
-  const url = getGasUrl();
-  if (!url) {
-    document.getElementById('stationsGrid').innerHTML =
-      '<div class="no-station">⚙️ กรอก GAS URL ด้านบนก่อน</div>';
-    return;
-  }
   try {
     const r = await gsGetStations();
     if (!r || !r.success) throw new Error('stations failed');
@@ -574,9 +527,9 @@ async function loadStations() {
       document.getElementById('serverTimeEl').textContent = 'Server: ' + r.server_time;
     }
   } catch (e) {
-    toast('โหลดฐานไม่สำเร็จ — ตรวจสอบ GAS URL', 'err');
+    toast('โหลดฐานไม่สำเร็จ', 'err');
     document.getElementById('stationsGrid').innerHTML =
-      '<div class="no-station">❌ โหลดไม่สำเร็จ ตรวจสอบ URL และ Deploy</div>';
+      '<div class="no-station">❌ โหลดไม่สำเร็จ ตรวจสอบการ Deploy GAS</div>';
     console.error(e);
   }
 }
@@ -725,7 +678,6 @@ async function handleDecoded(qr) {
   if (lastHit.qr === qr && (now - lastHit.t) < 2500) return;
   lastHit = { qr, t: now };
   if (!selectedStation) { toast('ยังไม่เลือกฐาน', 'warn'); return; }
-  if (!getGasUrl()) { toast('ยังไม่ได้ตั้งค่า GAS URL', 'err'); return; }
 
   scanStatusEl.textContent = `🔄 พบ: ${qr} กำลังบันทึก...`;
 
@@ -955,20 +907,9 @@ document.getElementById('qrModal').addEventListener('click', e => { if (e.target
 
 // ── Init ──
 (async () => {
-  // โหลด URL ที่เคย save ไว้
-  const savedUrl = getGasUrl();
-  if (savedUrl) {
-    document.getElementById('gasUrlInput').value = savedUrl;
-    document.getElementById('configBanner').style.background = '#f0fdf4';
-    document.getElementById('configBanner').style.borderColor = '#86efac';
-  }
   hideLoading();
   await loadStations();
-  if (!getGasUrl()) {
-    toast('กรอก GAS URL ด้านบนก่อนใช้งาน', 'warn');
-  } else {
-    toast('พร้อมใช้งานแล้ว 🎉', 'ok');
-  }
+  toast('พร้อมใช้งานแล้ว 🎉', 'ok');
 })();
 </script>
 </body>
