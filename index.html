@@ -469,7 +469,8 @@ let barcodeDetector = null;
 let zxingReader     = null;
 let rafId           = null;
 
-const videoEl      = document.getElementById('video');
+// set เก็บ qr ที่แจ้งเตือน duplicate ไปแล้ว (reset เมื่อเปลี่ยนฐาน)
+const shownDupWarning = new Set();
 const scanStatusEl = document.getElementById('scanStatus');
 const scanLine     = document.getElementById('scanLine');
 
@@ -508,6 +509,7 @@ function renderStations() {
 
 window.selectStation = function (station_id) {
   selectedStation = stations.find(s => s.station_id === station_id) || null;
+  shownDupWarning.clear(); // reset เมื่อเปลี่ยนฐาน
   updateStationUI();
   renderStations();
   toast('เลือกฐาน: ' + (selectedStation?.station_name || ''), 'ok');
@@ -623,26 +625,30 @@ let scanCtx    = null;
 let frameSkip  = 0; // สำหรับ throttle ZXing
 
 function initScannerEngines() {
-  // BarcodeDetector (เร็วที่สุด — native browser API)
+  // BarcodeDetector (Chrome/Edge Android — เร็วที่สุด)
   try {
     barcodeDetector = 'BarcodeDetector' in window
       ? new BarcodeDetector({ formats: ['qr_code'] })
       : null;
   } catch (e) { barcodeDetector = null; }
 
-  // ZXing fallback
+  // ZXing (iOS Safari + ทุกเบราว์เซอร์ที่ไม่มี BarcodeDetector)
   try {
     if (window.ZXingBrowser) {
+      // เปิด TryHarder เพื่อให้อ่าน QR ได้ดีขึ้นบน iOS
       const hints = new Map();
-      // ปิด TryHarder เพื่อความเร็ว (เปิดถ้า QR เล็กมาก)
-      hints.set(2, false); // DecodeHintType.TRY_HARDER
+      hints.set(3, true); // DecodeHintType.TRY_HARDER
       zxingReader = new window.ZXingBrowser.BrowserQRCodeReader(hints);
     } else {
       zxingReader = null;
     }
-  } catch (e) { zxingReader = null; }
+  } catch (e) {
+    // ลอง init โดยไม่มี hints
+    try { zxingReader = new window.ZXingBrowser.BrowserQRCodeReader(); }
+    catch (e2) { zxingReader = null; }
+  }
 
-  // เตรียม canvas ไว้ล่วงหน้า
+  // canvas (ใช้ใน native loop)
   scanCanvas = document.createElement('canvas');
   scanCtx    = scanCanvas.getContext('2d', { willReadFrequently: true });
 }
@@ -655,10 +661,28 @@ function startScanLoop() {
   scanStatusEl.textContent = '🔍 กำลังสแกน...';
   if (scanLine) scanLine.style.display = 'block';
 
-  if (barcodeDetector) { runNativeLoop(); return; }
-  if (zxingReader)     { runZxingLoop();  return; }
-  toast('ไม่รองรับตัวสแกน QR ในเบราว์เซอร์นี้', 'err');
+  if (barcodeDetector) {
+    console.log('Scanner: BarcodeDetector (native)');
+    runNativeLoop();
+    return;
+  }
+  if (zxingReader) {
+    console.log('Scanner: ZXing fallback');
+    runZxingLoop();
+    return;
+  }
+
+  // ไม่รองรับทั้งคู่
   scanning = false;
+  if (scanLine) scanLine.style.display = 'none';
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+  if (isIOS) {
+    toast('กรุณาเปิดด้วย Safari บน iOS', 'err');
+    scanStatusEl.textContent = '❌ กรุณาเปิดด้วย Safari';
+  } else {
+    toast('เบราว์เซอร์นี้ไม่รองรับสแกน QR', 'err');
+    scanStatusEl.textContent = '❌ ไม่รองรับสแกน QR';
+  }
 }
 
 function stopScanLoop() {
@@ -692,72 +716,26 @@ async function runNativeLoop() {
   rafId = requestAnimationFrame(loop);
 }
 
-// ── ZXing loop (ทุก 2 frame = ~30fps เพื่อไม่ให้ CPU หนัก) ──
+// ── ZXing loop — รองรับ iOS Safari + Android ทุกเบราว์เซอร์ ──
 function runZxingLoop() {
-  let processing = false;
-
-  const loop = async () => {
-    if (!scanning) return;
-
-    frameSkip++;
-    // ประมวลผลทุก 2 frame (~30fps) — ปรับเป็น 1 ถ้าต้องการเร็วสุด
-    if (frameSkip % 2 === 0 && !processing && videoEl.readyState === 4) {
-      processing = true;
-      try {
-        // Capture frame ลง canvas แล้วส่งให้ ZXing decode
-        const vw = videoEl.videoWidth;
-        const vh = videoEl.videoHeight;
-        if (vw > 0 && vh > 0) {
-          scanCanvas.width  = vw;
-          scanCanvas.height = vh;
-          scanCtx.drawImage(videoEl, 0, 0, vw, vh);
-          const imageData = scanCtx.getImageData(0, 0, vw, vh);
-
-          // decode โดยตรงจาก ImageData (เร็วกว่า decodeFromVideoElement)
-          const result = await new Promise((resolve) => {
-            try {
-              const lum = new window.ZXingBrowser.HTMLCanvasElementLuminanceSource(scanCanvas);
-              const bin = new window.ZXing.HybridBinarizer(lum);
-              const bmp = new window.ZXing.BinaryBitmap(bin);
-              resolve(new window.ZXing.QRCodeReader().decode(bmp));
-            } catch (e) {
-              resolve(null);
-            }
-          });
-
-          if (result) {
-            const raw = String(result.getText() || '').trim();
-            if (raw) await handleDecoded(raw);
-          }
-        }
-      } catch (e) {}
-      processing = false;
-    }
-
-    rafId = requestAnimationFrame(loop);
-  };
-
-  // ถ้า ZXing low-level ไม่รองรับ ใช้ continuous แทน
+  if (!zxingReader) {
+    toast('ไม่รองรับตัวสแกน QR ในเบราว์เซอร์นี้', 'err');
+    scanning = false;
+    return;
+  }
   try {
-    if (window.ZXing?.QRCodeReader) {
-      rafId = requestAnimationFrame(loop);
-    } else {
-      throw new Error('use continuous');
-    }
+    zxingReader.decodeFromVideoElementContinuously(videoEl, async (result, err) => {
+      if (!scanning) return;
+      if (result) {
+        const raw = String(result.getText() || '').trim();
+        if (raw) await handleDecoded(raw);
+      }
+      // err ปกติจะเกิดทุก frame ที่ไม่เจอ QR — ไม่ต้องแสดง
+    });
   } catch (e) {
-    // Fallback: decodeFromVideoElementContinuously
-    try {
-      zxingReader.decodeFromVideoElementContinuously(videoEl, async (result) => {
-        if (!scanning) return;
-        if (result) {
-          const raw = String(result.getText() || '').trim();
-          if (raw) await handleDecoded(raw);
-        }
-      });
-    } catch (e2) {
-      toast('ZXing เริ่มสแกนไม่สำเร็จ', 'err');
-      scanning = false;
-    }
+    console.error('ZXing error:', e);
+    toast('ZXing เริ่มสแกนไม่สำเร็จ', 'err');
+    scanning = false;
   }
 }
 
