@@ -8,7 +8,8 @@
   <!-- ✅ กล้องทำงานได้เพราะไม่ผ่าน iframe GAS -->
   <meta http-equiv="Permissions-Policy" content="camera=*, microphone=()">
 
-  <script src="https://cdn.jsdelivr.net/npm/@zxing/browser@0.1.5/umd/index.min.js"></script>
+  <!-- ✅ html5-qrcode: รองรับ iOS Safari + Android Chrome/Samsung ทุกรุ่น -->
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;600;800;900&display=swap" rel="stylesheet">
 
@@ -461,15 +462,22 @@ function hideLoading() {
 // ═══════════════════════════════════════════════════════════
 let stations        = [];
 let selectedStation = null;
-let stream          = null;
+let html5QrScanner  = null; // ใช้ html5-qrcode แทน
 let scanning        = false;
 let torchOn         = false;
 let lastHit         = { qr: '', t: 0 };
+
+// ตัวแปรเก่า (ไม่ใช้แล้ว — คงไว้ไม่ให้ error)
+let stream = null;
 let barcodeDetector = null;
 let zxingReader     = null;
 let rafId           = null;
+let scanCanvas      = null;
+let scanCtx         = null;
+let frameSkip       = 0;
 
-const videoEl      = document.getElementById('video');
+// set เก็บ qr ที่แจ้งเตือน duplicate ไปแล้ว (reset เมื่อเปลี่ยนฐาน)
+const shownDupWarning = new Set();
 const scanStatusEl = document.getElementById('scanStatus');
 const scanLine     = document.getElementById('scanLine');
 
@@ -508,6 +516,7 @@ function renderStations() {
 
 window.selectStation = function (station_id) {
   selectedStation = stations.find(s => s.station_id === station_id) || null;
+  shownDupWarning.clear(); // reset เมื่อเปลี่ยนฐาน
   updateStationUI();
   renderStations();
   toast('เลือกฐาน: ' + (selectedStation?.station_name || ''), 'ok');
@@ -535,147 +544,159 @@ async function loadStations() {
 }
 
 // ═══════════════════════════════════════════════════════════
-// CAMERA ✅ ทำงานได้เพราะไม่ผ่าน GAS iframe
 // ═══════════════════════════════════════════════════════════
+// CAMERA + SCANNER — html5-qrcode (iOS + Android ทุกรุ่น)
+// ═══════════════════════════════════════════════════════════
+
+const SCANNER_ELEM_ID = 'qr-reader-hidden'; // div สำหรับ html5-qrcode
+
+function getOrCreateScannerDiv() {
+  let el = document.getElementById(SCANNER_ELEM_ID);
+  if (!el) {
+    el = document.createElement('div');
+    el.id = SCANNER_ELEM_ID;
+    el.style.display = 'none'; // ซ่อน div ของ lib — ใช้ #video แทน
+    document.body.appendChild(el);
+  }
+  return el;
+}
+
 async function openCamera() {
-  if (stream) return;
+  if (scanning) return;
   if (!selectedStation) { toast('กรุณาเลือกฐานก่อน', 'warn'); return; }
-  if (!navigator.mediaDevices?.getUserMedia) { toast('เบราว์เซอร์ไม่รองรับกล้อง', 'err'); return; }
   if (!window.isSecureContext) { toast('ต้องเปิดผ่าน https เท่านั้น', 'err'); return; }
+  if (typeof Html5Qrcode === 'undefined') {
+    toast('โหลด library ไม่สำเร็จ กรุณารีโหลดหน้า', 'err'); return;
+  }
 
-  stopScanLoop();
-  try { videoEl.srcObject = null; } catch (e) {}
-  if (stream) { try { stream.getTracks().forEach(t => t.stop()); } catch (e) {} stream = null; }
+  setStatus('🟡', 'กำลังเปิดกล้อง...');
+  scanStatusEl.textContent = '⏳ กำลังเปิดกล้อง...';
 
-  const constraints = [
-    { video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false },
-    { video: { facingMode: 'environment' }, audio: false },
-    { video: { facingMode: { ideal: 'environment' } }, audio: false },
-    { video: true, audio: false },
-  ];
+  try {
+    // หยุดตัวเก่าก่อน
+    if (html5QrScanner) {
+      try { await html5QrScanner.stop(); } catch(e) {}
+      html5QrScanner = null;
+    }
 
-  let lastErr = null;
-  for (const c of constraints) {
-    try {
-      stream = await navigator.mediaDevices.getUserMedia(c);
-      videoEl.srcObject = stream;
+    getOrCreateScannerDiv();
+
+    html5QrScanner = new Html5Qrcode(SCANNER_ELEM_ID, {
+      verbose: false,
+      experimentalFeatures: { useBarCodeDetectorIfSupported: true } // ใช้ native API ถ้ามี
+    });
+
+    const config = {
+      fps: 15,                  // iOS ชอบ fps ต่ำ — เพิ่มได้ถึง 30 บน Android
+      qrbox: { width: 280, height: 280 },
+      aspectRatio: 1.0,
+      formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
+      rememberLastUsedCamera: true,
+    };
+
+    await html5QrScanner.start(
+      { facingMode: 'environment' }, // กล้องหลัง
+      config,
+      // ✅ onSuccess
+      async (decodedText) => {
+        if (decodedText) await handleDecoded(decodedText.trim());
+      },
+      // onFailure — เงียบ (เกิดทุก frame ที่ไม่เจอ QR)
+      (_err) => {}
+    );
+
+    // เอา video จาก html5-qrcode มาแสดงใน #video ของเรา
+    patchVideoDisplay();
+
+    scanning = true;
+    if (scanLine) scanLine.style.display = 'block';
+    setStatus('🟢', 'พร้อมสแกน');
+    scanStatusEl.textContent = '🔍 กำลังสแกน...';
+    toast('เปิดกล้องแล้ว', 'ok');
+
+  } catch (e) {
+    console.error('openCamera error:', e);
+    html5QrScanner = null;
+    scanning = false;
+    const msg = e?.message || String(e);
+    if (/permission|denied|NotAllowed/i.test(msg)) {
+      toast('กรุณาอนุญาตกล้อง: กด 🔒 → Camera → Allow', 'err');
+      scanStatusEl.textContent = '❌ ไม่ได้รับอนุญาตกล้อง';
+    } else if (/NotFound|no camera/i.test(msg)) {
+      toast('ไม่พบกล้องในอุปกรณ์นี้', 'err');
+      scanStatusEl.textContent = '❌ ไม่พบกล้อง';
+    } else {
+      toast('เปิดกล้องไม่สำเร็จ: ' + msg.slice(0,60), 'err');
+      scanStatusEl.textContent = '❌ เปิดกล้องไม่สำเร็จ';
+    }
+    setStatus('🔴', 'กล้องไม่พร้อม');
+  }
+}
+
+// ดึง video element จาก html5-qrcode มาแสดงใน cam-wrap
+function patchVideoDisplay() {
+  try {
+    const srcVideo = document.querySelector('#' + SCANNER_ELEM_ID + ' video');
+    if (srcVideo && videoEl) {
+      // Mirror stream จาก lib ไปยัง #video ของเรา
+      videoEl.srcObject = srcVideo.srcObject;
       videoEl.setAttribute('playsinline', '');
       videoEl.setAttribute('webkit-playsinline', '');
       videoEl.muted = true;
-      await new Promise(res => {
-        if (videoEl.readyState >= 1) return res();
-        videoEl.onloadedmetadata = () => res();
-        setTimeout(res, 3000);
-      });
-      await videoEl.play().catch(() => {});
-      setStatus('🟢', 'พร้อมสแกน');
-      scanStatusEl.textContent = '🔍 พร้อมสแกน...';
-      toast('เปิดกล้องแล้ว', 'ok');
-      return;
-    } catch (err) { lastErr = err; stream = null; }
-  }
-
-  const msgs = {
-    NotAllowedError:      'กรุณาอนุญาตกล้อง: กด 🔒 URL → Camera → Allow',
-    NotReadableError:     'กล้องถูกแอปอื่นใช้งาน (ปิด Zoom/Meet ก่อน)',
-    NotFoundError:        'ไม่พบกล้องในอุปกรณ์นี้',
-    OverconstrainedError: 'กล้องไม่รองรับ resolution ที่ต้องการ',
-  };
-  toast(msgs[lastErr?.name] || `เปิดกล้องไม่ได้: ${lastErr?.name || 'UnknownError'}`, 'err');
-  setStatus('🔴', 'กล้องไม่พร้อม');
-  scanStatusEl.textContent = '❌ เปิดกล้องไม่ได้';
+      videoEl.play().catch(() => {});
+    }
+  } catch(e) {}
 }
 
-function closeCamera() {
-  stopScanLoop();
-  torchOn = false;
-  try { videoEl.srcObject = null; } catch (e) {}
-  if (stream) { try { stream.getTracks().forEach(t => t.stop()); } catch (e) {} stream = null; }
-  scanning = false;
+async function closeCamera() {
   if (scanLine) scanLine.style.display = 'none';
   scanStatusEl.textContent = '⏸ หยุดสแกน';
   setStatus('🟢', 'พร้อม');
+
+  if (html5QrScanner) {
+    try {
+      if (html5QrScanner.isScanning) await html5QrScanner.stop();
+    } catch(e) {}
+    try { html5QrScanner.clear(); } catch(e) {}
+    html5QrScanner = null;
+  }
+
+  try { if (videoEl) videoEl.srcObject = null; } catch(e) {}
+  scanning = false;
+  torchOn  = false;
   toast('ปิดกล้องแล้ว', 'ok');
 }
 
 async function toggleTorch() {
-  if (!stream) { toast('เปิดกล้องก่อน', 'warn'); return; }
-  const track = (stream.getVideoTracks() || [])[0];
-  if (!track) { toast('ไม่พบ video track', 'warn'); return; }
-  const cap = track.getCapabilities ? track.getCapabilities() : {};
-  if (!cap.torch) { toast('อุปกรณ์นี้ไม่รองรับไฟฉาย', 'warn'); return; }
+  if (!html5QrScanner || !scanning) { toast('เปิดกล้องก่อน', 'warn'); return; }
   try {
-    torchOn = !torchOn;
-    await track.applyConstraints({ advanced: [{ torch: torchOn }] });
-    toast(torchOn ? '🔦 เปิดไฟ' : '🔦 ปิดไฟ', 'ok');
-  } catch (e) { toast('เปิด/ปิดไฟไม่สำเร็จ', 'err'); }
-}
-
-// ═══════════════════════════════════════════════════════════
-// SCANNER ENGINES
-// ═══════════════════════════════════════════════════════════
-function initScannerEngines() {
-  try { barcodeDetector = 'BarcodeDetector' in window ? new BarcodeDetector({ formats: ['qr_code'] }) : null; }
-  catch (e) { barcodeDetector = null; }
-  try { zxingReader = window.ZXingBrowser ? new window.ZXingBrowser.BrowserQRCodeReader() : null; }
-  catch (e) { zxingReader = null; }
-}
-
-function startScanLoop() {
-  if (scanning) return;
-  if (!stream) { toast('เปิดกล้องก่อน', 'warn'); return; }
-  scanning = true;
-  scanStatusEl.textContent = '🔍 กำลังสแกน...';
-  if (scanLine) scanLine.style.display = 'block';
-  if (barcodeDetector) { runNativeLoop(); return; }
-  if (zxingReader)     { runZxingLoop();  return; }
-  toast('ไม่รองรับตัวสแกน QR ในเบราว์เซอร์นี้', 'err');
-  scanning = false;
-}
-
-function stopScanLoop() {
-  if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
-  try { if (zxingReader) zxingReader.reset(); } catch (e) {}
-  scanning = false;
-  if (scanLine) scanLine.style.display = 'none';
-}
-
-async function runNativeLoop() {
-  const loop = async () => {
-    if (!scanning || !barcodeDetector) return;
-    try {
-      const codes = await barcodeDetector.detect(videoEl);
-      if (codes?.length) {
-        const raw = (codes[0].rawValue || '').trim();
-        if (raw) await handleDecoded(raw);
+    const track = html5QrScanner.getRunningTrackCapabilities?.();
+    // html5-qrcode v2.3+
+    if (html5QrScanner.getRunningTrackCameraCapabilities) {
+      const cap = html5QrScanner.getRunningTrackCameraCapabilities();
+      if (cap?.torchFeature?.isSupported()) {
+        torchOn = !torchOn;
+        await cap.torchFeature().apply(torchOn);
+        toast(torchOn ? '🔦 เปิดไฟ' : '🔦 ปิดไฟ', 'ok');
+        return;
       }
-    } catch (e) {}
-    rafId = requestAnimationFrame(loop);
-  };
-  rafId = requestAnimationFrame(loop);
+    }
+    toast('อุปกรณ์นี้ไม่รองรับไฟฉาย', 'warn');
+  } catch(e) { toast('เปิด/ปิดไฟไม่สำเร็จ', 'err'); }
 }
 
-function runZxingLoop() {
-  try {
-    zxingReader.decodeFromVideoElementContinuously(videoEl, async (result) => {
-      if (!scanning) return;
-      if (result) {
-        const raw = String(result.getText() || '').trim();
-        if (raw) await handleDecoded(raw);
-      }
-    });
-  } catch (e) {
-    toast('ZXing เริ่มสแกนไม่สำเร็จ', 'err');
-    scanning = false;
-  }
-}
+// ฟังก์ชัน dummy (เรียกจาก event listener เดิม — ไม่ใช้แล้ว)
+function initScannerEngines() {}
+function startScanLoop() {}
+function stopScanLoop() {}
 
 // ═══════════════════════════════════════════════════════════
 // CHECK-IN — ส่ง POST ไปหา GAS
 // ═══════════════════════════════════════════════════════════
 async function handleDecoded(qr) {
   const now = Date.now();
-  if (lastHit.qr === qr && (now - lastHit.t) < 2500) return;
+  // ลด debounce จาก 2500ms → 1500ms เพื่อความเร็ว
+  if (lastHit.qr === qr && (now - lastHit.t) < 1500) return;
   lastHit = { qr, t: now };
   if (!selectedStation) { toast('ยังไม่เลือกฐาน', 'warn'); return; }
 
@@ -886,7 +907,6 @@ document.getElementById('btnReload').addEventListener('click', loadStations);
 
 document.getElementById('btnStart').addEventListener('click', async () => {
   await openCamera();
-  if (stream) { initScannerEngines(); startScanLoop(); }
 });
 document.getElementById('btnStop').addEventListener('click', closeCamera);
 document.getElementById('btnTorch').addEventListener('click', toggleTorch);
