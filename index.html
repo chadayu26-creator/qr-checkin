@@ -5,10 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>🦊 QR Check-in | โรงเรียนคลองใหม่</title>
 
+  <!-- ✅ กล้องทำงานได้เพราะไม่ผ่าน iframe GAS -->
   <meta http-equiv="Permissions-Policy" content="camera=*, microphone=()">
 
-  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@zxing/browser@0.1.5/umd/index.min.js"></script>
+  <!-- ✅ jsQR: decode QR จาก canvas — ทำงานได้ทุกอุปกรณ์/เบราว์เซอร์ -->
+  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;600;800;900&display=swap" rel="stylesheet">
 
@@ -87,15 +88,15 @@
       border: 3px solid #fde047; margin-top: 13px;
       background: #111827;
     }
+    /* video ใน #qr-reader — ทุก engine ใช้ CSS นี้ */
     #qr-reader {
       width:100%; height:100%;
       background:#111827; border-radius:16px;
       overflow:hidden; position:relative;
       display:flex; align-items:center; justify-content:center;
     }
-    #qr-reader video,
-    #gum-video,
-    #zxing-video {
+    /* video ทุกตัวใน #qr-reader ต้องเห็นเต็มกรอบ */
+    #qr-reader video {
       position:absolute!important;
       top:0!important; left:0!important;
       width:100%!important; height:100%!important;
@@ -106,6 +107,7 @@
       opacity:1!important;
       z-index:1!important;
     }
+    /* ซ่อน UI ที่ไม่ต้องการของ html5-qrcode */
     #qr-reader img                { display:none!important; }
     #qr-reader__dashboard         { display:none!important; }
     #qr-reader__status_span       { display:none!important; }
@@ -113,6 +115,7 @@
     #qr-reader__camera_permission { display:none!important; }
     #qr-reader__filescan_input    { display:none!important; }
     #qr-reader__header_message    { display:none!important; }
+    /* scan frame overlay อยู่บน video */
     .scan-frame, .cam-badge { z-index:10!important; }
     .cam-badge {
       position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
@@ -132,6 +135,7 @@
       border-radius: 22px; border: 4px solid rgba(34,197,94,.75);
       position: relative;
     }
+    /* corner marks */
     .scan-frame-box::before,
     .scan-frame-box::after {
       content: ''; position: absolute;
@@ -254,133 +258,6 @@
       animation:spin .7s linear infinite;
     }
     @keyframes spin{to{transform:rotate(360deg)}}
-
-    /* ══════════════════════════════════════════
-       Fullscreen Success Overlay
-    ══════════════════════════════════════════ */
-    #successOverlay {
-      position: fixed; inset: 0; z-index: 200;
-      display: flex; flex-direction: column;
-      align-items: center; justify-content: center;
-      opacity: 0; pointer-events: none;
-      transition: opacity .2s;
-      cursor: pointer;
-      overflow: hidden;
-    }
-    #successOverlay.show {
-      opacity: 1; pointer-events: all;
-    }
-    #successOverlay.type-ok {
-      background: linear-gradient(160deg, #052e16 0%, #14532d 45%, #166534 100%);
-    }
-    #successOverlay.type-warn {
-      background: linear-gradient(160deg, #431407 0%, #7c2d12 45%, #9a3412 100%);
-    }
-    /* ambient glow pulse */
-    .suc-glow {
-      position: absolute; inset: 0; pointer-events: none;
-      background: radial-gradient(ellipse at center, rgba(255,255,255,.07) 0%, transparent 65%);
-      animation: glowPulse 2s ease-in-out infinite;
-    }
-    @keyframes glowPulse {
-      0%,100% { transform: scale(1);    opacity: .6; }
-      50%      { transform: scale(1.12); opacity: 1;  }
-    }
-    /* big circle ring */
-    .suc-ring {
-      position: absolute;
-      width: min(70vw, 70vh); height: min(70vw, 70vh);
-      border-radius: 50%;
-      border: 3px solid rgba(255,255,255,.12);
-      animation: ringExpand 1.8s ease-out infinite;
-    }
-    .suc-ring:nth-child(2) { animation-delay: .6s; }
-    .suc-ring:nth-child(3) { animation-delay: 1.2s; }
-    @keyframes ringExpand {
-      0%   { transform: scale(.6); opacity: .8; }
-      100% { transform: scale(1.6); opacity: 0; }
-    }
-    /* content */
-    .suc-content {
-      position: relative; z-index: 5;
-      display: flex; flex-direction: column; align-items: center;
-      padding: 24px;
-    }
-    .suc-icon {
-      font-size: clamp(4rem, 15vw, 7rem); line-height: 1;
-      animation: iconBounce .5s cubic-bezier(.34,1.56,.64,1) both;
-      filter: drop-shadow(0 0 24px rgba(255,255,255,.3));
-    }
-    @keyframes iconBounce {
-      0%   { transform: scale(0) rotate(-15deg); opacity: 0; }
-      60%  { transform: scale(1.15) rotate(5deg); }
-      100% { transform: scale(1) rotate(0deg);   opacity: 1; }
-    }
-    .suc-name {
-      font-family: 'Prompt', sans-serif;
-      font-size: clamp(1.8rem, 7vw, 3.5rem);
-      font-weight: 900; color: #fff;
-      text-shadow: 0 4px 30px rgba(0,0,0,.5);
-      margin-top: 16px; text-align: center;
-      line-height: 1.15;
-      animation: slideUp .4s .1s cubic-bezier(.34,1.56,.64,1) both;
-    }
-    .suc-sub {
-      font-family: 'Prompt', sans-serif;
-      font-size: clamp(.95rem, 3.5vw, 1.3rem);
-      font-weight: 700;
-      color: rgba(255,255,255,.8);
-      margin-top: 10px; text-align: center;
-      animation: slideUp .4s .18s cubic-bezier(.34,1.56,.64,1) both;
-    }
-    .suc-time {
-      font-family: 'Prompt', sans-serif;
-      font-size: clamp(.75rem, 2.5vw, .95rem);
-      color: rgba(255,255,255,.5);
-      margin-top: 18px; text-align: center;
-      animation: slideUp .4s .25s cubic-bezier(.34,1.56,.64,1) both;
-    }
-    /* progress bar auto-close */
-    .suc-progress-wrap {
-      position: absolute; bottom: 0; left: 0; right: 0; height: 4px;
-      background: rgba(255,255,255,.15);
-    }
-    .suc-progress-bar {
-      height: 100%; width: 100%;
-      background: rgba(255,255,255,.55);
-      transform-origin: left;
-      animation: progressShrink 2.5s linear both;
-    }
-    @keyframes progressShrink {
-      from { transform: scaleX(1); }
-      to   { transform: scaleX(0); }
-    }
-    .suc-tap {
-      position: absolute; bottom: 18px; left: 50%; transform: translateX(-50%);
-      font-family: 'Prompt', sans-serif;
-      font-size: .78rem; color: rgba(255,255,255,.35);
-      white-space: nowrap;
-      animation: fadeInTap .5s .7s both;
-    }
-    @keyframes slideUp {
-      from { transform: translateY(28px); opacity: 0; }
-      to   { transform: translateY(0);    opacity: 1; }
-    }
-    @keyframes fadeInTap {
-      from { opacity: 0; } to { opacity: 1; }
-    }
-
-    /* confetti */
-    .confetti-piece {
-      position: absolute; opacity: 0; pointer-events: none;
-      animation: confettiFall linear forwards;
-      border-radius: 2px;
-    }
-    @keyframes confettiFall {
-      0%   { transform: translateY(-60px) rotate(0deg) scale(1); opacity: 1; }
-      80%  { opacity: .8; }
-      100% { transform: translateY(105vh) rotate(800deg) scale(.5); opacity: 0; }
-    }
   </style>
 </head>
 <body>
@@ -435,7 +312,9 @@
     </div>
 
     <div class="cam-wrap" id="camWrap">
+      <!-- html5-qrcode จะ inject video ใน #qr-reader -->
       <div id="qr-reader" style="width:100%;height:100%;border-radius:16px;overflow:hidden"></div>
+      <!-- overlay -->
       <div class="cam-badge" id="camBadge">ยังไม่เลือกฐาน</div>
       <div class="scan-frame">
         <div class="scan-frame-box">
@@ -516,29 +395,6 @@
   </div>
 </div>
 
-<!-- ══ Fullscreen Success Overlay ══ -->
-<div id="successOverlay" onclick="hideSuccessOverlay()">
-  <!-- animated rings -->
-  <div class="suc-ring"></div>
-  <div class="suc-ring"></div>
-  <div class="suc-ring"></div>
-  <!-- ambient glow -->
-  <div class="suc-glow"></div>
-  <!-- main content -->
-  <div class="suc-content">
-    <div id="sucIcon" class="suc-icon">🎉</div>
-    <div id="sucName" class="suc-name"></div>
-    <div id="sucSub"  class="suc-sub"></div>
-    <div id="sucTime" class="suc-time"></div>
-  </div>
-  <!-- auto-close progress bar -->
-  <div class="suc-progress-wrap">
-    <div class="suc-progress-bar" id="sucProgressBar"></div>
-  </div>
-  <!-- tap hint -->
-  <div class="suc-tap">แตะเพื่อปิด</div>
-</div>
-
 <!-- Toast -->
 <div id="toast" class="toast"><span id="toastText"></span></div>
 
@@ -546,8 +402,9 @@
 'use strict';
 
 // ═══════════════════════════════════════════════════════════
-// CONFIG
+// CONFIG — แก้ไข GAS_URL หรือกรอกในช่อง input บนหน้าจอ
 // ═══════════════════════════════════════════════════════════
+// ✅ GAS URL ฝังตายตัว — ไม่ต้องตั้งค่า
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbzY6gC2y9UdKosuARHRoFW-lpXhjnC8Q3-5jLrLMHGIlEJwFmp2X-qCbdX0RVDlllD2jQ/exec';
 
 function getGasUrl() { return GAS_URL; }
@@ -555,30 +412,45 @@ function saveGasUrl() {}
 function testConnection() {}
 
 // ═══════════════════════════════════════════════════════════
-// API
+// API — fetch ไปหา GAS (แทน google.script.run)
 // ═══════════════════════════════════════════════════════════
+
+// GET request (สำหรับ ping, stations)
 async function gasGet(action, overrideUrl) {
   const base = overrideUrl || getGasUrl();
   if (!base) throw new Error('NO_GAS_URL');
-  const res = await fetch(base + '?action=' + encodeURIComponent(action), { method: 'GET', redirect: 'follow' });
+  const url = base + '?action=' + encodeURIComponent(action);
+  const res = await fetch(url, { method: 'GET', redirect: 'follow' });
   return res.json();
 }
 
+// POST request (สำหรับ checkin และอื่นๆ)
 async function gasPost(payload) {
   const url = getGasUrl();
   if (!url) throw new Error('NO_GAS_URL');
   const res = await fetch(url, {
-    method: 'POST', redirect: 'follow',
-    headers: { 'Content-Type': 'text/plain' },
+    method: 'POST',
+    redirect: 'follow',
+    headers: { 'Content-Type': 'text/plain' }, // GAS ต้องการ text/plain เพื่อหลีก CORS preflight
     body: JSON.stringify(payload)
   });
   return res.json();
 }
 
-async function gsGetStations()  { return gasGet('stations'); }
-async function gsCheckin(p)     { return gasPost({ action: 'checkin', ...p }); }
-async function gsGetFullStats() { return gasPost({ action: 'getFullStats' }); }
-async function gsGetStudents()  { return gasPost({ action: 'getStudents' }); }
+// Wrapper functions ที่ตรงกับ gsRun เดิม
+async function gsGetStations() {
+  return gasGet('stations');
+}
+async function gsCheckin(payload) {
+  return gasPost({ action: 'checkin', ...payload });
+}
+async function gsGetFullStats() {
+  // GAS ยังไม่มี GET endpoint สำหรับ stats → ใช้ POST
+  return gasPost({ action: 'getFullStats' });
+}
+async function gsGetStudents() {
+  return gasPost({ action: 'getStudents' });
+}
 
 // ═══════════════════════════════════════════════════════════
 // UTILITIES
@@ -617,96 +489,19 @@ function hideLoading() {
 // ═══════════════════════════════════════════════════════════
 let stations        = [];
 let selectedStation = null;
-let scanning        = false;
-let torchOn         = false;
-let lastHit         = { qr: '', t: 0 };
-let html5Scanner    = null;
-let zxingReader     = null;
-let nativeDetector  = null;
-let rafId           = null;
-let scanCanvas      = null;
-let scanCtx         = null;
+let scanning    = false;
+let torchOn     = false;
+let lastHit     = { qr: '', t: 0 };
+let camStream   = null;   // MediaStream
+let rafId       = null;   // requestAnimationFrame id
+let scanCanvas  = null;
+let scanCtx     = null;
+let nativeDet   = null;   // BarcodeDetector ถ้ามี
 
+// set เก็บ qr ที่แจ้งเตือน duplicate ไปแล้ว (reset เมื่อเปลี่ยนฐาน)
 const shownDupWarning = new Set();
 const scanStatusEl = document.getElementById('scanStatus');
 const scanLine     = document.getElementById('scanLine');
-
-// ═══════════════════════════════════════════════════════════
-// FULLSCREEN SUCCESS OVERLAY
-// ═══════════════════════════════════════════════════════════
-let successTimer = null;
-
-function showSuccessOverlay({ icon, name, sub, time, type }) {
-  const ov = document.getElementById('successOverlay');
-
-  // ล้าง confetti เก่า + reset animation progress bar
-  ov.querySelectorAll('.confetti-piece').forEach(el => el.remove());
-
-  // reset progress bar animation
-  const bar = document.getElementById('sucProgressBar');
-  bar.style.animation = 'none';
-  bar.offsetHeight; // reflow
-  bar.style.animation = '';
-
-  // set type class
-  ov.className = 'show type-' + (type || 'ok');
-
-  // set content
-  document.getElementById('sucIcon').textContent = icon || '✅';
-  document.getElementById('sucName').textContent = name || '';
-  document.getElementById('sucSub').textContent  = sub  || '';
-  document.getElementById('sucTime').textContent = time ? '🕐 ' + time : '';
-
-  // re-trigger icon animation
-  const iconEl = document.getElementById('sucIcon');
-  iconEl.style.animation = 'none';
-  iconEl.offsetHeight;
-  iconEl.style.animation = '';
-
-  // confetti เฉพาะ success
-  if (type !== 'warn') {
-    spawnConfetti(ov);
-  }
-
-  clearTimeout(successTimer);
-  successTimer = setTimeout(hideSuccessOverlay, 2500);
-}
-
-function hideSuccessOverlay() {
-  clearTimeout(successTimer);
-  const ov = document.getElementById('successOverlay');
-  ov.style.transition = 'opacity .25s';
-  ov.style.opacity    = '0';
-  ov.style.pointerEvents = 'none';
-  setTimeout(() => {
-    ov.className = '';
-    ov.style.opacity    = '';
-    ov.style.transition = '';
-    ov.style.pointerEvents = '';
-  }, 260);
-}
-
-function spawnConfetti(parent) {
-  const colors  = ['#4ade80','#86efac','#fde047','#f9a8d4','#a78bfa','#67e8f9','#fb923c','#fff'];
-  const shapes  = ['2px','4px','50%'];
-  const count   = 55;
-  for (let i = 0; i < count; i++) {
-    const el = document.createElement('div');
-    el.className = 'confetti-piece';
-    const size = 6 + Math.random() * 10;
-    el.style.cssText = [
-      'left:'   + (Math.random() * 100) + '%',
-      'top:-10px',
-      'width:'  + size + 'px',
-      'height:' + (size * (.5 + Math.random())) + 'px',
-      'background:' + colors[Math.floor(Math.random() * colors.length)],
-      'border-radius:' + shapes[Math.floor(Math.random() * shapes.length)],
-      'animation-delay:'    + (Math.random() * .6) + 's',
-      'animation-duration:' + (.9 + Math.random() * .9) + 's',
-    ].join(';');
-    parent.appendChild(el);
-  }
-}
 
 // ═══════════════════════════════════════════════════════════
 // STATION UI
@@ -743,7 +538,7 @@ function renderStations() {
 
 window.selectStation = function (station_id) {
   selectedStation = stations.find(s => s.station_id === station_id) || null;
-  shownDupWarning.clear();
+  shownDupWarning.clear(); // reset เมื่อเปลี่ยนฐาน
   updateStationUI();
   renderStations();
   toast('เลือกฐาน: ' + (selectedStation?.station_name || ''), 'ok');
@@ -772,302 +567,171 @@ async function loadStations() {
 
 // ═══════════════════════════════════════════════════════════
 // MULTI-ENGINE SCANNER
+// รองรับ: iOS Safari · Android Chrome/Samsung · iPad · PC
+// Engine 1: BarcodeDetector (Chrome/Edge/Android — เร็วสุด)
+// Engine 2: html5-qrcode    (iOS Safari · ทุกอุปกรณ์)
+// Engine 3: ZXing            (fallback สุดท้าย)
 // ═══════════════════════════════════════════════════════════
+
+// ═══════════════════════════════════════════════════════════
+// SCANNER — jsQR + BarcodeDetector
+// ทำงานได้: iOS Safari · Android · iPad · PC (Chrome/Firefox/Edge/Safari)
+// ═══════════════════════════════════════════════════════════
+
 async function openCamera() {
   if (scanning) return;
   if (!selectedStation) { toast('กรุณาเลือกฐานก่อน', 'warn'); return; }
   if (!window.isSecureContext) { toast('ต้องเปิดผ่าน https เท่านั้น', 'err'); return; }
+  if (!navigator.mediaDevices?.getUserMedia) { toast('เบราว์เซอร์ไม่รองรับกล้อง', 'err'); return; }
 
   setStatus('🟡', 'กำลังเปิดกล้อง...');
   scanStatusEl.textContent = '⏳ กำลังเปิดกล้อง...';
 
-  if (await tryHtml5Qrcode()) return;
-  if (await tryZxing())       return;
-  if (await tryGetUserMedia()) return;
-
-  setStatus('🔴', 'ไม่รองรับ');
-  scanStatusEl.textContent = '❌ ไม่สามารถเปิดกล้องได้';
-  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-  if (isIOS) {
-    toast('กรุณาเปิดด้วย Safari และอนุญาตกล้อง', 'err');
-  } else {
-    toast('ไม่สามารถเปิดกล้องได้ — ตรวจสอบสิทธิ์กล้อง', 'err');
-  }
-}
-
-async function tryHtml5Qrcode() {
-  if (typeof Html5Qrcode === 'undefined') return false;
-  try {
-    if (html5Scanner) {
-      try { if (html5Scanner.isScanning) await html5Scanner.stop(); } catch(e){}
-      try { html5Scanner.clear(); } catch(e){}
-      html5Scanner = null;
-    }
-    const readerDiv = document.getElementById('qr-reader');
-    if (readerDiv) readerDiv.innerHTML = '';
-
-    html5Scanner = new Html5Qrcode('qr-reader', {
-      verbose: false,
-      experimentalFeatures: { useBarCodeDetectorIfSupported: true }
-    });
-
-    const cameras = await Html5Qrcode.getCameras().catch(() => []);
-    let cameraConfig = { facingMode: 'environment' };
-
-    if (cameras.length > 0) {
-      const backCam = cameras.find(c => /back|rear|environment|หลัง/i.test(c.label));
-      if (backCam) cameraConfig = backCam.id;
-      else if (cameras.length > 1) cameraConfig = cameras[cameras.length - 1].id;
-      else cameraConfig = cameras[0].id;
-    }
-
-    const isDesktop = !/Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-
-    await html5Scanner.start(
-      cameraConfig,
-      {
-        fps: isDesktop ? 25 : 20,
-        qrbox: (w, h) => {
-          const s = isDesktop ? Math.min(w, h) * 0.85 : Math.min(w, h) * 0.72;
-          return { width: Math.floor(s), height: Math.floor(s) };
-        },
-        disableFlip: false,
-        rememberLastUsedCamera: true,
-        videoConstraints: isDesktop
-          ? { width:{ideal:1280}, height:{ideal:720}, frameRate:{ideal:30} }
-          : { facingMode:'environment', width:{ideal:1280}, height:{ideal:720} },
-      },
-      async (text) => { if (text?.trim()) await handleDecoded(text.trim()); },
-      (_err) => {}
-    );
-
-    await new Promise(res => setTimeout(res, 500));
-
-    scanning = true;
-    if (scanLine) scanLine.style.display = 'block';
-    setStatus('🟢', 'พร้อมสแกน');
-    scanStatusEl.textContent = '🔍 กำลังสแกน...';
-    toast('เปิดกล้องแล้ว', 'ok');
-    return true;
-
-  } catch(e) {
-    console.warn('html5-qrcode failed:', e?.message || e);
-    try { if (html5Scanner) { html5Scanner.clear(); html5Scanner = null; } } catch(_){}
-    if (/NotAllowed|permission|denied/i.test(String(e))) {
-      toast('กรุณาอนุญาตกล้อง: กด 🔒 → Camera → Allow', 'err');
-      scanStatusEl.textContent = '❌ ไม่ได้รับอนุญาตกล้อง';
-      setStatus('🔴', 'ไม่ได้รับอนุญาต');
-      return true;
-    }
-    return false;
-  }
-}
-
-async function tryZxing() {
-  if (typeof ZXingBrowser === 'undefined') return false;
-  try {
-    zxingReader = new ZXingBrowser.BrowserQRCodeReader();
-    const devices = await ZXingBrowser.BrowserCodeReader.listVideoInputDevices();
-    const backDev = devices.find(d => /back|rear|environment/i.test(d.label)) || devices[0];
-    const deviceId = backDev?.deviceId;
-
-    const readerDiv = document.getElementById('qr-reader');
-    if (readerDiv) {
-      readerDiv.innerHTML = '';
-      const v = document.createElement('video');
-      v.id = 'zxing-video';
-      v.autoplay = true; v.playsInline = true; v.muted = true;
-      readerDiv.appendChild(v);
-    }
-    const videoElem = document.getElementById('zxing-video');
-    await zxingReader.decodeFromVideoDevice(deviceId, videoElem, async (result) => {
-      if (!scanning) return;
-      if (result) await handleDecoded(result.getText().trim());
-    });
-
-    scanning = true;
-    if (scanLine) scanLine.style.display = 'block';
-    setStatus('🟢', 'พร้อมสแกน (ZXing)');
-    scanStatusEl.textContent = '🔍 กำลังสแกน...';
-    toast('เปิดกล้องแล้ว', 'ok');
-    return true;
-  } catch(e) {
-    console.warn('ZXing failed:', e?.message || e);
-    try { if (zxingReader) zxingReader.reset(); zxingReader = null; } catch(_){}
-    return false;
-  }
-}
-
-async function tryGetUserMedia() {
-  if (!navigator.mediaDevices?.getUserMedia) return false;
-
+  // ─── 1. ขอ camera stream ───
   const isDesktop = !/Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-  const constraints = isDesktop
+  const tries = isDesktop
     ? [
-        { video: { width:{ideal:1280}, height:{ideal:720}, frameRate:{ideal:30} }, audio: false },
-        { video: { width:{ideal:640},  height:{ideal:480} }, audio: false },
-        { video: true, audio: false },
+        { video: { width:{ideal:1280}, height:{ideal:720}, frameRate:{ideal:30} }, audio:false },
+        { video: { width:{ideal:640},  height:{ideal:480} }, audio:false },
+        { video: true, audio:false },
       ]
     : [
-        { video: { facingMode:'environment', width:{ideal:1280}, height:{ideal:720} }, audio: false },
-        { video: { facingMode:'environment' }, audio: false },
-        { video: true, audio: false },
+        { video: { facingMode:'environment', width:{ideal:1280}, height:{ideal:720}, frameRate:{ideal:30} }, audio:false },
+        { video: { facingMode:'environment' }, audio:false },
+        { video: { facingMode:{ ideal:'environment' } }, audio:false },
+        { video: true, audio:false },
       ];
 
-  let stream = null;
-  for (const c of constraints) {
-    try { stream = await navigator.mediaDevices.getUserMedia(c); break; }
-    catch(e) { stream = null; }
+  let lastErr = null;
+  for (const c of tries) {
+    try { camStream = await navigator.mediaDevices.getUserMedia(c); break; }
+    catch(e) { lastErr = e; camStream = null; }
   }
-  if (!stream) return false;
 
+  if (!camStream) {
+    const msgs = {
+      NotAllowedError:  'กรุณาอนุญาตกล้อง: กด 🔒 → Camera → Allow',
+      NotFoundError:    'ไม่พบกล้องในอุปกรณ์นี้',
+      NotReadableError: 'กล้องถูกแอปอื่นใช้งานอยู่',
+    };
+    toast(msgs[lastErr?.name] || 'เปิดกล้องไม่ได้: ' + (lastErr?.name||''), 'err');
+    setStatus('🔴', 'กล้องไม่พร้อม');
+    scanStatusEl.textContent = '❌ เปิดกล้องไม่ได้';
+    return;
+  }
+
+  // ─── 2. inject <video> ใน #qr-reader ───
   const readerDiv = document.getElementById('qr-reader');
-  if (readerDiv) {
-    readerDiv.innerHTML = '';
-    const v = document.createElement('video');
-    v.id = 'gum-video';
-    v.autoplay = true; v.playsInline = true; v.muted = true;
-    readerDiv.appendChild(v);
-  }
-
-  const vid = document.getElementById('gum-video');
-  vid.srcObject = stream;
+  readerDiv.innerHTML = '';
+  const vid = document.createElement('video');
+  vid.setAttribute('autoplay', '');
+  vid.setAttribute('playsinline', '');
+  vid.setAttribute('webkit-playsinline', '');
   vid.muted = true;
+  readerDiv.appendChild(vid);
+
+  vid.srcObject = camStream;
   await new Promise(res => {
     vid.onloadedmetadata = () => res();
-    setTimeout(res, 4000);
+    setTimeout(res, 5000);
   });
-  await vid.play().catch(()=>{});
+  try { await vid.play(); } catch(e) {}
 
-  let decoder = 'none';
+  // ─── 3. เตรียม decode engine ───
+  // ลอง BarcodeDetector ก่อน (เร็วกว่า jsQR ~3x บน Chrome/Edge)
   try {
-    nativeDetector = new BarcodeDetector({ formats:['qr_code'] });
-    decoder = 'barcode';
-  } catch(e) { nativeDetector = null; }
+    if ('BarcodeDetector' in window) {
+      nativeDet = new BarcodeDetector({ formats: ['qr_code'] });
+      // ทดสอบว่าใช้งานได้จริง
+      await nativeDet.detect(vid);
+      console.log('Decoder: BarcodeDetector ✅');
+    }
+  } catch(e) { nativeDet = null; }
 
-  let zxReader = null;
-  if (decoder === 'none' && typeof ZXingBrowser !== 'undefined') {
-    try { zxReader = new ZXingBrowser.BrowserQRCodeReader(); decoder = 'zxing-canvas'; } catch(e) {}
-  }
+  if (!nativeDet) console.log('Decoder: jsQR ✅');
 
-  if (decoder === 'none' && typeof jsQR === 'undefined') {
-    try {
-      await loadScript('https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js');
-      decoder = 'jsqr';
-    } catch(e) {}
-  } else if (decoder === 'none' && typeof jsQR !== 'undefined') {
-    decoder = 'jsqr';
-  }
-
+  // ─── 4. เตรียม canvas ───
   scanCanvas = document.createElement('canvas');
   scanCtx    = scanCanvas.getContext('2d', { willReadFrequently: true });
 
+  // ─── 5. เริ่ม scan loop ───
   scanning = true;
   if (scanLine) scanLine.style.display = 'block';
   setStatus('🟢', 'พร้อมสแกน');
   scanStatusEl.textContent = '🔍 กำลังสแกน...';
-  toast('เปิดกล้องแล้ว', 'ok');
+  toast('เปิดกล้องแล้ว 📷', 'ok');
 
-  let processing = false;
-  let frameCount = 0;
+  let busy  = false;
+  let ticks = 0;
+  // jsQR ทุก 2 frame (~15fps) ลด CPU | BarcodeDetector ทุก frame
+  const SKIP = nativeDet ? 1 : 2;
 
   const loop = async () => {
     if (!scanning) return;
-    frameCount++;
-    const interval = (decoder === 'barcode') ? 1 : 3;
+    ticks++;
 
-    if (frameCount % interval === 0 && !processing && vid.readyState >= 2) {
-      processing = true;
+    if (ticks % SKIP === 0 && !busy && vid.readyState >= 2 && vid.videoWidth > 0) {
+      busy = true;
       try {
-        const vw = vid.videoWidth  || 640;
-        const vh = vid.videoHeight || 480;
+        let raw = null;
 
-        if (decoder === 'barcode') {
-          const codes = await nativeDetector.detect(vid);
-          if (codes?.length) await handleDecoded(codes[0].rawValue.trim());
+        if (nativeDet) {
+          // ── BarcodeDetector (Chrome/Edge/Android Chrome) ──
+          const codes = await nativeDet.detect(vid);
+          if (codes?.length) raw = codes[0].rawValue;
 
-        } else if (decoder === 'zxing-canvas' && zxReader) {
-          scanCanvas.width = vw; scanCanvas.height = vh;
-          scanCtx.drawImage(vid, 0, 0, vw, vh);
-          try {
-            const result = await zxReader.decodeFromCanvas(scanCanvas);
-            if (result) await handleDecoded(result.getText().trim());
-          } catch(e) {}
-
-        } else if (decoder === 'jsqr') {
-          scanCanvas.width = vw; scanCanvas.height = vh;
+        } else {
+          // ── jsQR (ทุกอุปกรณ์/เบราว์เซอร์) ──
+          const vw = vid.videoWidth;
+          const vh = vid.videoHeight;
+          scanCanvas.width  = vw;
+          scanCanvas.height = vh;
           scanCtx.drawImage(vid, 0, 0, vw, vh);
           const imgData = scanCtx.getImageData(0, 0, vw, vh);
-          const code    = jsQR(imgData.data, vw, vh, { inversionAttempts: 'dontInvert' });
-          if (code?.data) await handleDecoded(code.data.trim());
+          // ลอง normal + inverted เพื่อรองรับ QR ทุกรูปแบบ
+          const code = jsQR(imgData.data, vw, vh, { inversionAttempts: 'attemptBoth' });
+          if (code?.data) raw = code.data;
         }
-      } catch(e) {}
-      processing = false;
+
+        if (raw?.trim()) await handleDecoded(raw.trim());
+
+      } catch(e) { /* frame error — ปกติ */ }
+      busy = false;
     }
+
     rafId = requestAnimationFrame(loop);
   };
   rafId = requestAnimationFrame(loop);
-
-  window.__gumStream = stream;
-  return true;
-}
-
-function loadScript(src) {
-  return new Promise((resolve, reject) => {
-    if (document.querySelector('script[src="' + src + '"]')) return resolve();
-    const s = document.createElement('script');
-    s.src = src; s.onload = resolve; s.onerror = reject;
-    document.head.appendChild(s);
-  });
 }
 
 async function closeCamera() {
   scanning = false;
   torchOn  = false;
+  if (rafId)  { cancelAnimationFrame(rafId); rafId = null; }
+  if (camStream) {
+    try { camStream.getTracks().forEach(t => t.stop()); } catch(e) {}
+    camStream = null;
+  }
+  nativeDet  = null;
+  scanCanvas = null;
+  scanCtx    = null;
   if (scanLine) scanLine.style.display = 'none';
-  scanStatusEl.textContent = '⏸ หยุดสแกน';
-  setStatus('🟢', 'พร้อม');
-
-  if (html5Scanner) {
-    try { if (html5Scanner.isScanning) await html5Scanner.stop(); } catch(e){}
-    try { html5Scanner.clear(); } catch(e){}
-    html5Scanner = null;
-  }
-  if (zxingReader) { try { zxingReader.reset(); } catch(e){} zxingReader = null; }
-  if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
-  if (window.__gumStream) {
-    try { window.__gumStream.getTracks().forEach(t=>t.stop()); } catch(e){}
-    window.__gumStream = null;
-  }
   const readerDiv = document.getElementById('qr-reader');
   if (readerDiv) readerDiv.innerHTML = '';
-
+  scanStatusEl.textContent = '⏸ หยุดสแกน';
+  setStatus('🟢', 'พร้อม');
   toast('ปิดกล้องแล้ว', 'ok');
 }
 
 async function toggleTorch() {
-  if (!scanning) { toast('เปิดกล้องก่อน', 'warn'); return; }
+  if (!camStream) { toast('เปิดกล้องก่อน', 'warn'); return; }
+  const track = camStream.getVideoTracks()[0];
+  const cap   = track?.getCapabilities?.() || {};
+  if (!cap.torch) { toast('อุปกรณ์นี้ไม่รองรับไฟฉาย', 'warn'); return; }
   try {
-    if (html5Scanner?.getRunningTrackCameraCapabilities) {
-      const cap = html5Scanner.getRunningTrackCameraCapabilities();
-      if (cap?.torchFeature?.()?.isSupported()) {
-        torchOn = !torchOn;
-        await cap.torchFeature().apply(torchOn);
-        toast(torchOn ? '🔦 เปิดไฟ' : '🔦 ปิดไฟ', 'ok');
-        return;
-      }
-    }
-    if (window.__gumStream) {
-      const track = window.__gumStream.getVideoTracks()[0];
-      const cap2  = track?.getCapabilities?.() || {};
-      if (cap2.torch) {
-        torchOn = !torchOn;
-        await track.applyConstraints({ advanced: [{ torch: torchOn }] });
-        toast(torchOn ? '🔦 เปิดไฟ' : '🔦 ปิดไฟ', 'ok');
-        return;
-      }
-    }
-    toast('อุปกรณ์นี้ไม่รองรับไฟฉาย', 'warn');
+    torchOn = !torchOn;
+    await track.applyConstraints({ advanced: [{ torch: torchOn }] });
+    toast(torchOn ? '🔦 เปิดไฟ' : '🔦 ปิดไฟ', 'ok');
   } catch(e) { toast('เปิด/ปิดไฟไม่สำเร็จ', 'err'); }
 }
 
@@ -1076,10 +740,11 @@ function startScanLoop() {}
 function stopScanLoop() {}
 
 // ═══════════════════════════════════════════════════════════
-// CHECK-IN
+// CHECK-IN — ส่ง POST ไปหา GAS
 // ═══════════════════════════════════════════════════════════
 async function handleDecoded(qr) {
   const now = Date.now();
+  // ลด debounce จาก 2500ms → 1500ms เพื่อความเร็ว
   if (lastHit.qr === qr && (now - lastHit.t) < 1500) return;
   lastHit = { qr, t: now };
   if (!selectedStation) { toast('ยังไม่เลือกฐาน', 'warn'); return; }
@@ -1112,31 +777,17 @@ async function handleDecoded(qr) {
   }
 
   const firstName = res.student?.first_name || qr;
-  const timeStr   = res.server_time || '';
+  const timeStr   = res.server_time ? ` (${res.server_time})` : '';
 
   if (res.duplicate) {
     toast(`${firstName} เช็คอินแล้ว`, 'warn');
-    scanStatusEl.textContent = `🔄 ${firstName} เช็คอินแล้ว`;
-    showSuccessOverlay({
-      icon: '🔄',
-      name: firstName,
-      sub:  'เช็คอินไปแล้ว',
-      time: timeStr,
-      type: 'warn'
-    });
+    scanStatusEl.textContent = `🔄 ${firstName} เช็คอินแล้ว${timeStr}`;
   } else {
     toast(`ยินดีต้อนรับ ${firstName} 🎉`, 'ok');
-    scanStatusEl.textContent = `✅ สำเร็จ: ${firstName}`;
+    scanStatusEl.textContent = `✅ สำเร็จ: ${firstName}${timeStr}`;
     const wrap = document.getElementById('camWrap');
     wrap.classList.add('flash-ok');
     setTimeout(() => wrap.classList.remove('flash-ok'), 700);
-    showSuccessOverlay({
-      icon: '🎉',
-      name: firstName,
-      sub:  'เช็คอินสำเร็จ!',
-      time: timeStr,
-      type: 'ok'
-    });
   }
 }
 
@@ -1302,17 +953,23 @@ document.getElementById('qrSearch').addEventListener('input', e => {
 // EVENT LISTENERS
 // ═══════════════════════════════════════════════════════════
 document.getElementById('btnReload').addEventListener('click', loadStations);
-document.getElementById('btnStart').addEventListener('click', openCamera);
+
+document.getElementById('btnStart').addEventListener('click', async () => {
+  await openCamera();
+});
 document.getElementById('btnStop').addEventListener('click', closeCamera);
 document.getElementById('btnTorch').addEventListener('click', toggleTorch);
+
 document.getElementById('btnManual').addEventListener('click', openManual);
 document.getElementById('btnManualCancel').addEventListener('click', closeManual);
 document.getElementById('btnManualOK').addEventListener('click', submitManual);
 document.getElementById('manualInput').addEventListener('keydown', e => { if (e.key === 'Enter') submitManual(); });
 document.getElementById('manualModal').addEventListener('click', e => { if (e.target === e.currentTarget) closeManual(); });
+
 document.getElementById('btnSummary').addEventListener('click', openSummary);
 document.getElementById('btnSummaryClose').addEventListener('click', closeSummary);
 document.getElementById('summaryModal').addEventListener('click', e => { if (e.target === e.currentTarget) closeSummary(); });
+
 document.getElementById('btnGenQR').addEventListener('click', openQr);
 document.getElementById('btnQrClose').addEventListener('click', closeQr);
 document.getElementById('qrModal').addEventListener('click', e => { if (e.target === e.currentTarget) closeQr(); });
