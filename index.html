@@ -4,33 +4,47 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>🦊 QR Check-in | โรงเรียนคลองใหม่</title>
+
+  <!-- ✅ กล้องทำงานได้เพราะไม่ผ่าน iframe GAS -->
   <meta http-equiv="Permissions-Policy" content="camera=*, microphone=()">
-  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@zxing/browser@0.1.5/umd/index.min.js"></script>
+
+  <!-- ✅ jsQR: decode QR จาก canvas — ทำงานได้ทุกอุปกรณ์/เบราว์เซอร์ -->
+  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;600;800;900&display=swap" rel="stylesheet">
 
   <style>
+    /* ── Reset & Base ── */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
-      --purple: #7c3aed; --pink: #ec4899; --green: #22c55e;
-      --orange: #f97316; --indigo: #4f46e5; --dark: #0f172a;
-      --card: #ffffff; --bg: #f0f4ff; --text: #1e293b;
-      --muted: #64748b; --border: #e2e8f0; --radius: 20px;
+      --purple: #7c3aed;
+      --pink:   #ec4899;
+      --green:  #22c55e;
+      --orange: #f97316;
+      --indigo: #4f46e5;
+      --dark:   #0f172a;
+      --card:   #ffffff;
+      --bg:     #f0f4ff;
+      --text:   #1e293b;
+      --muted:  #64748b;
+      --border: #e2e8f0;
+      --radius: 20px;
       --shadow: 0 4px 24px rgba(0,0,0,.09);
     }
     html { scroll-behavior: smooth; }
     body {
       font-family: 'Prompt', sans-serif;
       background: linear-gradient(160deg, #dbeafe 0%, #ede9fe 40%, #fce7f3 70%, #fef9c3 100%);
-      min-height: 100vh; color: var(--text);
+      min-height: 100vh;
+      color: var(--text);
     }
 
     /* ── Header ── */
     header {
       position: sticky; top: 0; z-index: 30;
       background: linear-gradient(90deg, #4f46e5, #7c3aed, #ec4899);
-      color: #fff; box-shadow: 0 4px 20px rgba(124,58,237,.35);
+      color: #fff;
+      box-shadow: 0 4px 20px rgba(124,58,237,.35);
     }
     .hdr { max-width: 900px; margin: auto; padding: 11px 16px; display: flex; align-items: center; justify-content: space-between; }
     .hdr-title { font-size: 1.05rem; font-weight: 900; letter-spacing: -.5px; }
@@ -45,7 +59,10 @@
     main { max-width: 900px; margin: auto; padding: 14px 12px; }
 
     /* ── Card ── */
-    .card { background: var(--card); border-radius: var(--radius); padding: 16px; box-shadow: var(--shadow); margin-bottom: 12px; }
+    .card {
+      background: var(--card); border-radius: var(--radius);
+      padding: 16px; box-shadow: var(--shadow); margin-bottom: 12px;
+    }
 
     /* ── Buttons ── */
     .btn {
@@ -71,18 +88,26 @@
       border: 3px solid #fde047; margin-top: 13px;
       background: #111827;
     }
+    /* video ใน #qr-reader — ทุก engine ใช้ CSS นี้ */
     #qr-reader {
-      width:100%; height:100%; background:#111827; border-radius:16px;
+      width:100%; height:100%;
+      background:#111827; border-radius:16px;
       overflow:hidden; position:relative;
       display:flex; align-items:center; justify-content:center;
     }
-    #qr-reader video, #gum-video, #zxing-video {
-      position:absolute!important; top:0!important; left:0!important;
+    /* video ทุกตัวใน #qr-reader ต้องเห็นเต็มกรอบ */
+    #qr-reader video {
+      position:absolute!important;
+      top:0!important; left:0!important;
       width:100%!important; height:100%!important;
-      object-fit:cover!important; border-radius:16px!important;
-      display:block!important; visibility:visible!important;
-      opacity:1!important; z-index:1!important;
+      object-fit:cover!important;
+      border-radius:16px!important;
+      display:block!important;
+      visibility:visible!important;
+      opacity:1!important;
+      z-index:1!important;
     }
+    /* ซ่อน UI ที่ไม่ต้องการของ html5-qrcode */
     #qr-reader img                { display:none!important; }
     #qr-reader__dashboard         { display:none!important; }
     #qr-reader__status_span       { display:none!important; }
@@ -90,6 +115,7 @@
     #qr-reader__camera_permission { display:none!important; }
     #qr-reader__filescan_input    { display:none!important; }
     #qr-reader__header_message    { display:none!important; }
+    /* scan frame overlay อยู่บน video */
     .scan-frame, .cam-badge { z-index:10!important; }
     .cam-badge {
       position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
@@ -109,12 +135,15 @@
       border-radius: 22px; border: 4px solid rgba(34,197,94,.75);
       position: relative;
     }
-    .scan-frame-box::before, .scan-frame-box::after {
+    /* corner marks */
+    .scan-frame-box::before,
+    .scan-frame-box::after {
       content: ''; position: absolute;
       width: 24px; height: 24px; border-color: #22c55e; border-style: solid;
     }
     .scan-frame-box::before { top: -4px; left: -4px; border-width: 4px 0 0 4px; border-radius: 6px 0 0 0; }
     .scan-frame-box::after  { bottom: -4px; right: -4px; border-width: 0 4px 4px 0; border-radius: 0 0 6px 0; }
+
     @keyframes scanline { 0%{top:8%} 100%{top:88%} }
     .scan-line {
       position: absolute; left: 5%; width: 90%; height: 3px;
@@ -142,7 +171,8 @@
     .no-station {
       grid-column: 1/-1; text-align: center;
       background: #fffbeb; border: 2px solid #fde68a;
-      border-radius: 14px; padding: 16px; font-weight: 700; color: #92400e;
+      border-radius: 14px; padding: 16px;
+      font-weight: 700; color: #92400e;
     }
 
     /* ── Toast ── */
@@ -158,130 +188,6 @@
     .toast.show  { transform: translate(-50%, 0); }
     .toast.warn  { border-color: var(--orange); }
     .toast.err   { border-color: #ef4444; }
-
-    /* ══════════════════════════════════════════════
-       ✅ FULLSCREEN SUCCESS ALERT (ใหม่)
-    ══════════════════════════════════════════════ */
-    #successOverlay {
-      position: fixed; inset: 0; z-index: 200;
-      display: flex; flex-direction: column;
-      align-items: center; justify-content: center;
-      pointer-events: none;
-      opacity: 0;
-      transition: opacity .18s ease;
-    }
-    #successOverlay.visible {
-      opacity: 1;
-      pointer-events: auto;
-    }
-
-    /* Blurred BG layer */
-    #successOverlay .so-bg {
-      position: absolute; inset: 0;
-      background: linear-gradient(145deg, rgba(5,150,105,.94) 0%, rgba(16,185,129,.90) 50%, rgba(6,95,70,.96) 100%);
-      backdrop-filter: blur(18px);
-      -webkit-backdrop-filter: blur(18px);
-    }
-
-    /* Particle rings */
-    @keyframes ringPulse {
-      0%   { transform: scale(.6); opacity: .7; }
-      100% { transform: scale(2.2); opacity: 0; }
-    }
-    .so-ring {
-      position: absolute; width: 280px; height: 280px;
-      border-radius: 50%; border: 4px solid rgba(255,255,255,.35);
-      top: 50%; left: 50%; transform: translate(-50%, -50%);
-      animation: ringPulse 1.4s ease-out infinite;
-    }
-    .so-ring:nth-child(2) { animation-delay: .35s; border-color: rgba(167,243,208,.45); }
-    .so-ring:nth-child(3) { animation-delay: .7s;  border-color: rgba(110,231,183,.3); }
-
-    /* Content box */
-    .so-content {
-      position: relative; z-index: 2;
-      display: flex; flex-direction: column;
-      align-items: center; justify-content: center;
-      text-align: center; padding: 32px 28px;
-      gap: 0;
-    }
-
-    /* Check icon circle */
-    @keyframes checkPop {
-      0%   { transform: scale(0) rotate(-20deg); opacity: 0; }
-      70%  { transform: scale(1.15) rotate(5deg); opacity: 1; }
-      100% { transform: scale(1) rotate(0deg); opacity: 1; }
-    }
-    .so-icon-wrap {
-      width: 120px; height: 120px; border-radius: 50%;
-      background: rgba(255,255,255,.22);
-      border: 5px solid rgba(255,255,255,.6);
-      display: flex; align-items: center; justify-content: center;
-      font-size: 4rem; line-height: 1;
-      animation: checkPop .5s cubic-bezier(.34,1.56,.64,1) both;
-      box-shadow: 0 0 60px rgba(255,255,255,.25), 0 8px 32px rgba(0,0,0,.18);
-      margin-bottom: 28px;
-    }
-
-    /* Name text */
-    @keyframes slideUp {
-      from { transform: translateY(30px); opacity: 0; }
-      to   { transform: translateY(0);    opacity: 1; }
-    }
-    .so-label {
-      font-size: .95rem; font-weight: 700;
-      color: rgba(255,255,255,.85);
-      letter-spacing: .05em; text-transform: uppercase;
-      animation: slideUp .4s .2s ease both;
-      margin-bottom: 6px;
-    }
-    .so-name {
-      font-size: clamp(2rem, 7vw, 3.8rem);
-      font-weight: 900; color: #fff;
-      line-height: 1.1;
-      text-shadow: 0 4px 24px rgba(0,0,0,.25);
-      animation: slideUp .45s .28s ease both;
-      margin-bottom: 10px;
-      word-break: break-word; max-width: 80vw;
-    }
-    .so-station {
-      font-size: clamp(.85rem, 2.5vw, 1.1rem);
-      font-weight: 700; color: rgba(167,243,208,1);
-      animation: slideUp .45s .36s ease both;
-      margin-bottom: 6px;
-    }
-    .so-time {
-      font-size: .82rem; font-weight: 600;
-      color: rgba(255,255,255,.6);
-      animation: slideUp .45s .42s ease both;
-    }
-
-    /* Progress bar auto-dismiss */
-    @keyframes progressShrink {
-      from { width: 100%; }
-      to   { width: 0%; }
-    }
-    .so-progress-track {
-      position: absolute; bottom: 0; left: 0; right: 0;
-      height: 6px; background: rgba(255,255,255,.15);
-    }
-    .so-progress-bar {
-      height: 100%; background: rgba(255,255,255,.7);
-      border-radius: 0 3px 3px 0;
-      animation: progressShrink 2.6s linear forwards;
-    }
-
-    /* Confetti dots */
-    @keyframes confettiFly {
-      0%   { transform: translate(0,0) rotate(0deg) scale(1); opacity: 1; }
-      100% { transform: translate(var(--tx), var(--ty)) rotate(var(--tr)) scale(.3); opacity: 0; }
-    }
-    .so-dot {
-      position: absolute; width: 10px; height: 10px;
-      border-radius: 50%;
-      top: 50%; left: 50%;
-      animation: confettiFly .9s .1s ease-out both;
-    }
 
     /* ── Modal ── */
     .modal-bg {
@@ -336,6 +242,8 @@
       background: #fffbeb; border: 2px solid #fcd34d;
       border-radius: 14px; padding: 12px; margin-bottom: 10px; display: none;
     }
+
+    /* ── Config Banner (ซ่อน) ── */
     #configBanner { display: none; }
 
     /* Loading overlay */
@@ -360,29 +268,6 @@
   <div>กำลังโหลด...</div>
 </div>
 
-<!-- ══════════════════════════════════════
-     ✅ FULLSCREEN SUCCESS OVERLAY (ใหม่)
-══════════════════════════════════════ -->
-<div id="successOverlay">
-  <div class="so-bg"></div>
-  <!-- Pulse rings -->
-  <div class="so-ring"></div>
-  <div class="so-ring"></div>
-  <div class="so-ring"></div>
-  <!-- Main content -->
-  <div class="so-content">
-    <div class="so-icon-wrap" id="soIcon">✅</div>
-    <div class="so-label">เช็คอินสำเร็จ!</div>
-    <div class="so-name" id="soName">ชื่อนักเรียน</div>
-    <div class="so-station" id="soStation">ฐาน: —</div>
-    <div class="so-time" id="soTime"></div>
-  </div>
-  <!-- Auto-dismiss progress -->
-  <div class="so-progress-track">
-    <div class="so-progress-bar" id="soProgressBar"></div>
-  </div>
-</div>
-
 <header>
   <div class="hdr">
     <div>
@@ -397,11 +282,14 @@
 </header>
 
 <main>
+
+  <!-- แจ้งเตือน LINE in-app -->
   <div id="inAppWarn" class="inapp-warn">
     <b style="color:#92400e">⚠️ เปิดจาก LINE/แอปอื่น — กล้องอาจไม่ทำงาน</b>
     <div style="font-size:.8rem;color:#92400e;margin-top:4px">กด ⋯ → <b>Open in browser</b> (Chrome/Safari)</div>
   </div>
 
+  <!-- Config GAS URL -->
   <div id="configBanner">
     <h3>⚙️ ตั้งค่า GAS Web App URL</h3>
     <input id="gasUrlInput" type="url" placeholder="https://script.google.com/macros/s/XXXXX/exec" autocomplete="off" />
@@ -424,7 +312,9 @@
     </div>
 
     <div class="cam-wrap" id="camWrap">
+      <!-- html5-qrcode จะ inject video ใน #qr-reader -->
       <div id="qr-reader" style="width:100%;height:100%;border-radius:16px;overflow:hidden"></div>
+      <!-- overlay -->
       <div class="cam-badge" id="camBadge">ยังไม่เลือกฐาน</div>
       <div class="scan-frame">
         <div class="scan-frame-box">
@@ -454,6 +344,7 @@
     </div>
     <div id="stationsGrid" class="stations-grid"></div>
   </div>
+
 </main>
 
 <!-- Manual Modal -->
@@ -510,12 +401,21 @@
 <script>
 'use strict';
 
+// ═══════════════════════════════════════════════════════════
+// CONFIG — แก้ไข GAS_URL หรือกรอกในช่อง input บนหน้าจอ
+// ═══════════════════════════════════════════════════════════
+// ✅ GAS URL ฝังตายตัว — ไม่ต้องตั้งค่า
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbzY6gC2y9UdKosuARHRoFW-lpXhjnC8Q3-5jLrLMHGIlEJwFmp2X-qCbdX0RVDlllD2jQ/exec';
 
 function getGasUrl() { return GAS_URL; }
 function saveGasUrl() {}
 function testConnection() {}
 
+// ═══════════════════════════════════════════════════════════
+// API — fetch ไปหา GAS (แทน google.script.run)
+// ═══════════════════════════════════════════════════════════
+
+// GET request (สำหรับ ping, stations)
 async function gasGet(action, overrideUrl) {
   const base = overrideUrl || getGasUrl();
   if (!base) throw new Error('NO_GAS_URL');
@@ -524,25 +424,37 @@ async function gasGet(action, overrideUrl) {
   return res.json();
 }
 
+// POST request (สำหรับ checkin และอื่นๆ)
 async function gasPost(payload) {
   const url = getGasUrl();
   if (!url) throw new Error('NO_GAS_URL');
   const res = await fetch(url, {
-    method: 'POST', redirect: 'follow',
-    headers: { 'Content-Type': 'text/plain' },
+    method: 'POST',
+    redirect: 'follow',
+    headers: { 'Content-Type': 'text/plain' }, // GAS ต้องการ text/plain เพื่อหลีก CORS preflight
     body: JSON.stringify(payload)
   });
   return res.json();
 }
 
-async function gsGetStations() { return gasGet('stations'); }
-async function gsCheckin(payload) { return gasPost({ action: 'checkin', ...payload }); }
-async function gsGetFullStats() { return gasPost({ action: 'getFullStats' }); }
-async function gsGetStudents() { return gasPost({ action: 'getStudents' }); }
+// Wrapper functions ที่ตรงกับ gsRun เดิม
+async function gsGetStations() {
+  return gasGet('stations');
+}
+async function gsCheckin(payload) {
+  return gasPost({ action: 'checkin', ...payload });
+}
+async function gsGetFullStats() {
+  // GAS ยังไม่มี GET endpoint สำหรับ stats → ใช้ POST
+  return gasPost({ action: 'getFullStats' });
+}
+async function gsGetStudents() {
+  return gasPost({ action: 'getStudents' });
+}
 
-// ═══════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════
 // UTILITIES
-// ═══════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════
 function toast(msg, type = 'ok') {
   const t  = document.getElementById('toast');
   const tx = document.getElementById('toastText');
@@ -563,96 +475,37 @@ function hideLoading() {
   if (el) el.style.display = 'none';
 }
 
-// ═══════════════════════════════════════════════════════
-// FULLSCREEN SUCCESS ALERT (ใหม่)
-// ═══════════════════════════════════════════════════════
-let __successTimer = null;
-const CONFETTI_COLORS = ['#bbf7d0','#6ee7b7','#fde68a','#fca5a5','#a5f3fc','#c4b5fd','#fff'];
-
-function showSuccessOverlay(name, stationName, timeStr) {
-  const overlay  = document.getElementById('successOverlay');
-  const soName   = document.getElementById('soName');
-  const soStation= document.getElementById('soStation');
-  const soTime   = document.getElementById('soTime');
-  const soBar    = document.getElementById('soProgressBar');
-
-  // set content
-  soName.textContent    = name;
-  soStation.textContent = '📍 ' + (stationName || '');
-  soTime.textContent    = timeStr || '';
-
-  // reset + re-trigger progress bar animation
-  soBar.style.animation = 'none';
-  soBar.offsetHeight; // reflow
-  soBar.style.animation = 'progressShrink 2.6s linear forwards';
-
-  // spawn confetti dots
-  overlay.querySelectorAll('.so-dot').forEach(d => d.remove());
-  for (let i = 0; i < 22; i++) {
-    const dot = document.createElement('div');
-    dot.className = 'so-dot';
-    const angle = (i / 22) * 360;
-    const dist  = 140 + Math.random() * 140;
-    const tx    = Math.cos(angle * Math.PI / 180) * dist + 'px';
-    const ty    = Math.sin(angle * Math.PI / 180) * dist + 'px';
-    const tr    = (Math.random() * 720 - 360) + 'deg';
-    dot.style.cssText = `
-      --tx:${tx}; --ty:${ty}; --tr:${tr};
-      background:${CONFETTI_COLORS[i % CONFETTI_COLORS.length]};
-      width:${8 + Math.random()*10}px;
-      height:${8 + Math.random()*10}px;
-      border-radius:${Math.random() > .5 ? '50%' : '3px'};
-      animation-delay:${Math.random()*.25}s;
-    `;
-    overlay.appendChild(dot);
-  }
-
-  // show
-  overlay.classList.add('visible');
-
-  // auto-dismiss after 2.6s
-  clearTimeout(__successTimer);
-  __successTimer = setTimeout(hideSuccessOverlay, 2600);
-}
-
-function hideSuccessOverlay() {
-  document.getElementById('successOverlay').classList.remove('visible');
-}
-
-// tap overlay to dismiss early
-document.getElementById('successOverlay').addEventListener('click', hideSuccessOverlay);
-
-// ═══════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════
 // IN-APP BROWSER
-// ═══════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════
 (function () {
   if (/Line|FBAN|FBAV|Instagram|Twitter|TikTok/i.test(navigator.userAgent || '')) {
     document.getElementById('inAppWarn').style.display = 'block';
   }
 })();
 
-// ═══════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════
 // STATE
-// ═══════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════
 let stations        = [];
 let selectedStation = null;
-let scanning        = false;
-let torchOn         = false;
-let lastHit         = { qr: '', t: 0 };
-let html5Scanner    = null;
-let zxingReader     = null;
-let nativeDetector  = null;
-let rafId           = null;
-let scanCanvas      = null;
-let scanCtx         = null;
+let scanning    = false;
+let torchOn     = false;
+let lastHit     = { qr: '', t: 0 };
+let camStream   = null;   // MediaStream
+let rafId       = null;   // requestAnimationFrame id
+let scanCanvas  = null;
+let scanCtx     = null;
+let nativeDet   = null;   // BarcodeDetector ถ้ามี
 
+// set เก็บ qr ที่แจ้งเตือน duplicate ไปแล้ว (reset เมื่อเปลี่ยนฐาน)
 const shownDupWarning = new Set();
-const scanStatusEl    = document.getElementById('scanStatus');
-const scanLine        = document.getElementById('scanLine');
+const scanStatusEl = document.getElementById('scanStatus');
+const scanLine     = document.getElementById('scanLine');
 
-// ═══════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════
 // STATION UI
-// ═══════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════
 function updateStationUI() {
   const stText   = document.getElementById('stationText');
   const camBadge = document.getElementById('camBadge');
@@ -685,7 +538,7 @@ function renderStations() {
 
 window.selectStation = function (station_id) {
   selectedStation = stations.find(s => s.station_id === station_id) || null;
-  shownDupWarning.clear();
+  shownDupWarning.clear(); // reset เมื่อเปลี่ยนฐาน
   updateStationUI();
   renderStations();
   toast('เลือกฐาน: ' + (selectedStation?.station_name || ''), 'ok');
@@ -701,8 +554,9 @@ async function loadStations() {
       selectedStation = null;
     updateStationUI();
     renderStations();
-    if (r.server_time)
+    if (r.server_time) {
       document.getElementById('serverTimeEl').textContent = 'Server: ' + r.server_time;
+    }
   } catch (e) {
     toast('โหลดฐานไม่สำเร็จ', 'err');
     document.getElementById('stationsGrid').innerHTML =
@@ -711,273 +565,173 @@ async function loadStations() {
   }
 }
 
-// ═══════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════
 // MULTI-ENGINE SCANNER
-// ═══════════════════════════════════════════════════════
+// รองรับ: iOS Safari · Android Chrome/Samsung · iPad · PC
+// Engine 1: BarcodeDetector (Chrome/Edge/Android — เร็วสุด)
+// Engine 2: html5-qrcode    (iOS Safari · ทุกอุปกรณ์)
+// Engine 3: ZXing            (fallback สุดท้าย)
+// ═══════════════════════════════════════════════════════════
+
+// ═══════════════════════════════════════════════════════════
+// SCANNER — jsQR + BarcodeDetector
+// ทำงานได้: iOS Safari · Android · iPad · PC (Chrome/Firefox/Edge/Safari)
+// ═══════════════════════════════════════════════════════════
+
 async function openCamera() {
   if (scanning) return;
   if (!selectedStation) { toast('กรุณาเลือกฐานก่อน', 'warn'); return; }
   if (!window.isSecureContext) { toast('ต้องเปิดผ่าน https เท่านั้น', 'err'); return; }
+  if (!navigator.mediaDevices?.getUserMedia) { toast('เบราว์เซอร์ไม่รองรับกล้อง', 'err'); return; }
 
   setStatus('🟡', 'กำลังเปิดกล้อง...');
   scanStatusEl.textContent = '⏳ กำลังเปิดกล้อง...';
 
-  if (await tryHtml5Qrcode()) return;
-  if (await tryZxing())       return;
-  if (await tryGetUserMedia()) return;
-
-  setStatus('🔴', 'ไม่รองรับ');
-  scanStatusEl.textContent = '❌ ไม่สามารถเปิดกล้องได้';
-  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-  toast(isIOS ? 'กรุณาเปิดด้วย Safari และอนุญาตกล้อง' : 'ไม่สามารถเปิดกล้องได้ — ตรวจสอบสิทธิ์กล้อง', 'err');
-}
-
-async function tryHtml5Qrcode() {
-  if (typeof Html5Qrcode === 'undefined') return false;
-  try {
-    if (html5Scanner) {
-      try { if (html5Scanner.isScanning) await html5Scanner.stop(); } catch(e){}
-      try { html5Scanner.clear(); } catch(e){}
-      html5Scanner = null;
-    }
-    const readerDiv = document.getElementById('qr-reader');
-    if (readerDiv) readerDiv.innerHTML = '';
-
-    html5Scanner = new Html5Qrcode('qr-reader', {
-      verbose: false,
-      experimentalFeatures: { useBarCodeDetectorIfSupported: true }
-    });
-
-    const cameras = await Html5Qrcode.getCameras().catch(() => []);
-    let cameraConfig = { facingMode: 'environment' };
-
-    if (cameras.length > 0) {
-      const backCam = cameras.find(c => /back|rear|environment|หลัง/i.test(c.label));
-      if (backCam) cameraConfig = backCam.id;
-      else if (cameras.length > 1) cameraConfig = cameras[cameras.length - 1].id;
-      else cameraConfig = cameras[0].id;
-    }
-
-    const isDesktop = !/Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-
-    await html5Scanner.start(
-      cameraConfig,
-      {
-        fps: isDesktop ? 25 : 20,
-        qrbox: (w, h) => {
-          const s = isDesktop ? Math.min(w, h) * 0.85 : Math.min(w, h) * 0.72;
-          return { width: Math.floor(s), height: Math.floor(s) };
-        },
-        disableFlip: false,
-        rememberLastUsedCamera: true,
-        videoConstraints: isDesktop
-          ? { width:{ideal:1280}, height:{ideal:720}, frameRate:{ideal:30} }
-          : { facingMode:'environment', width:{ideal:1280}, height:{ideal:720} },
-      },
-      async (text) => { if (text?.trim()) await handleDecoded(text.trim()); },
-      (_err) => {}
-    );
-
-    await new Promise(res => setTimeout(res, 500));
-    scanning = true;
-    if (scanLine) scanLine.style.display = 'block';
-    setStatus('🟢', 'พร้อมสแกน');
-    scanStatusEl.textContent = '🔍 กำลังสแกน...';
-    toast('เปิดกล้องแล้ว', 'ok');
-    return true;
-  } catch(e) {
-    console.warn('html5-qrcode failed:', e?.message || e);
-    try { if (html5Scanner) { html5Scanner.clear(); html5Scanner = null; } } catch(_){}
-    if (/NotAllowed|permission|denied/i.test(String(e))) {
-      toast('กรุณาอนุญาตกล้อง: กด 🔒 → Camera → Allow', 'err');
-      scanStatusEl.textContent = '❌ ไม่ได้รับอนุญาตกล้อง';
-      setStatus('🔴', 'ไม่ได้รับอนุญาต');
-      return true;
-    }
-    return false;
-  }
-}
-
-async function tryZxing() {
-  if (typeof ZXingBrowser === 'undefined') return false;
-  try {
-    zxingReader = new ZXingBrowser.BrowserQRCodeReader();
-    const devices = await ZXingBrowser.BrowserCodeReader.listVideoInputDevices();
-    const backDev = devices.find(d => /back|rear|environment/i.test(d.label)) || devices[0];
-    const deviceId = backDev?.deviceId;
-
-    const readerDiv = document.getElementById('qr-reader');
-    if (readerDiv) {
-      readerDiv.innerHTML = '';
-      const v = document.createElement('video');
-      v.id = 'zxing-video'; v.autoplay = true; v.playsInline = true; v.muted = true;
-      readerDiv.appendChild(v);
-    }
-    const videoElem = document.getElementById('zxing-video');
-    await zxingReader.decodeFromVideoDevice(deviceId, videoElem, async (result, err) => {
-      if (!scanning) return;
-      if (result) await handleDecoded(result.getText().trim());
-    });
-    scanning = true;
-    if (scanLine) scanLine.style.display = 'block';
-    setStatus('🟢', 'พร้อมสแกน (ZXing)');
-    scanStatusEl.textContent = '🔍 กำลังสแกน...';
-    toast('เปิดกล้องแล้ว', 'ok');
-    return true;
-  } catch(e) {
-    console.warn('ZXing failed:', e?.message || e);
-    try { if (zxingReader) zxingReader.reset(); zxingReader = null; } catch(_){}
-    return false;
-  }
-}
-
-async function tryGetUserMedia() {
-  if (!navigator.mediaDevices?.getUserMedia) return false;
-
+  // ─── 1. ขอ camera stream ───
   const isDesktop = !/Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-  const constraints = isDesktop
+  const tries = isDesktop
     ? [
-        { video: { width:{ideal:1280}, height:{ideal:720}, frameRate:{ideal:30} }, audio: false },
-        { video: { width:{ideal:640},  height:{ideal:480} }, audio: false },
-        { video: true, audio: false },
+        { video: { width:{ideal:1280}, height:{ideal:720}, frameRate:{ideal:30} }, audio:false },
+        { video: { width:{ideal:640},  height:{ideal:480} }, audio:false },
+        { video: true, audio:false },
       ]
     : [
-        { video: { facingMode:'environment', width:{ideal:1280}, height:{ideal:720} }, audio: false },
-        { video: { facingMode:'environment' }, audio: false },
-        { video: true, audio: false },
+        { video: { facingMode:'environment', width:{ideal:1280}, height:{ideal:720}, frameRate:{ideal:30} }, audio:false },
+        { video: { facingMode:'environment' }, audio:false },
+        { video: { facingMode:{ ideal:'environment' } }, audio:false },
+        { video: true, audio:false },
       ];
 
-  let stream = null;
-  for (const c of constraints) {
-    try { stream = await navigator.mediaDevices.getUserMedia(c); break; } catch(e) { stream = null; }
+  let lastErr = null;
+  for (const c of tries) {
+    try { camStream = await navigator.mediaDevices.getUserMedia(c); break; }
+    catch(e) { lastErr = e; camStream = null; }
   }
-  if (!stream) return false;
 
+  if (!camStream) {
+    const msgs = {
+      NotAllowedError:  'กรุณาอนุญาตกล้อง: กด 🔒 → Camera → Allow',
+      NotFoundError:    'ไม่พบกล้องในอุปกรณ์นี้',
+      NotReadableError: 'กล้องถูกแอปอื่นใช้งานอยู่',
+    };
+    toast(msgs[lastErr?.name] || 'เปิดกล้องไม่ได้: ' + (lastErr?.name||''), 'err');
+    setStatus('🔴', 'กล้องไม่พร้อม');
+    scanStatusEl.textContent = '❌ เปิดกล้องไม่ได้';
+    return;
+  }
+
+  // ─── 2. inject <video> ใน #qr-reader ───
   const readerDiv = document.getElementById('qr-reader');
-  if (readerDiv) {
-    readerDiv.innerHTML = '';
-    const v = document.createElement('video');
-    v.id = 'gum-video'; v.autoplay = true; v.playsInline = true; v.muted = true;
-    readerDiv.appendChild(v);
-  }
+  readerDiv.innerHTML = '';
+  const vid = document.createElement('video');
+  vid.setAttribute('autoplay', '');
+  vid.setAttribute('playsinline', '');
+  vid.setAttribute('webkit-playsinline', '');
+  vid.muted = true;
+  readerDiv.appendChild(vid);
 
-  const vid = document.getElementById('gum-video');
-  vid.srcObject = stream; vid.muted = true;
-  await new Promise(res => { vid.onloadedmetadata = () => res(); setTimeout(res, 4000); });
-  await vid.play().catch(()=>{});
+  vid.srcObject = camStream;
+  await new Promise(res => {
+    vid.onloadedmetadata = () => res();
+    setTimeout(res, 5000);
+  });
+  try { await vid.play(); } catch(e) {}
 
-  let decoder = 'none';
-  try { nativeDetector = new BarcodeDetector({ formats:['qr_code'] }); decoder = 'barcode'; } catch(e) { nativeDetector = null; }
+  // ─── 3. เตรียม decode engine ───
+  // ลอง BarcodeDetector ก่อน (เร็วกว่า jsQR ~3x บน Chrome/Edge)
+  try {
+    if ('BarcodeDetector' in window) {
+      nativeDet = new BarcodeDetector({ formats: ['qr_code'] });
+      // ทดสอบว่าใช้งานได้จริง
+      await nativeDet.detect(vid);
+      console.log('Decoder: BarcodeDetector ✅');
+    }
+  } catch(e) { nativeDet = null; }
 
-  let zxReader = null;
-  if (decoder === 'none' && typeof ZXingBrowser !== 'undefined') {
-    try { zxReader = new ZXingBrowser.BrowserQRCodeReader(); decoder = 'zxing-canvas'; } catch(e) {}
-  }
+  if (!nativeDet) console.log('Decoder: jsQR ✅');
 
-  if (decoder === 'none' && typeof jsQR === 'undefined') {
-    try { await loadScript('https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js'); decoder = 'jsqr'; } catch(e) {}
-  } else if (decoder === 'none' && typeof jsQR !== 'undefined') {
-    decoder = 'jsqr';
-  }
-
+  // ─── 4. เตรียม canvas ───
   scanCanvas = document.createElement('canvas');
   scanCtx    = scanCanvas.getContext('2d', { willReadFrequently: true });
 
+  // ─── 5. เริ่ม scan loop ───
   scanning = true;
   if (scanLine) scanLine.style.display = 'block';
   setStatus('🟢', 'พร้อมสแกน');
   scanStatusEl.textContent = '🔍 กำลังสแกน...';
-  toast('เปิดกล้องแล้ว', 'ok');
+  toast('เปิดกล้องแล้ว 📷', 'ok');
 
-  let processing = false;
-  let frameCount = 0;
+  let busy  = false;
+  let ticks = 0;
+  // jsQR ทุก 2 frame (~15fps) ลด CPU | BarcodeDetector ทุก frame
+  const SKIP = nativeDet ? 1 : 2;
 
   const loop = async () => {
     if (!scanning) return;
-    frameCount++;
-    const interval = (decoder === 'barcode') ? 1 : 3;
-    if (frameCount % interval === 0 && !processing && vid.readyState >= 2) {
-      processing = true;
+    ticks++;
+
+    if (ticks % SKIP === 0 && !busy && vid.readyState >= 2 && vid.videoWidth > 0) {
+      busy = true;
       try {
-        const vw = vid.videoWidth  || 640;
-        const vh = vid.videoHeight || 480;
-        if (decoder === 'barcode') {
-          const codes = await nativeDetector.detect(vid);
-          if (codes?.length) await handleDecoded(codes[0].rawValue.trim());
-        } else if (decoder === 'zxing-canvas' && zxReader) {
-          scanCanvas.width = vw; scanCanvas.height = vh;
-          scanCtx.drawImage(vid, 0, 0, vw, vh);
-          try { const result = await zxReader.decodeFromCanvas(scanCanvas); if (result) await handleDecoded(result.getText().trim()); } catch(e) {}
-        } else if (decoder === 'jsqr') {
-          scanCanvas.width = vw; scanCanvas.height = vh;
+        let raw = null;
+
+        if (nativeDet) {
+          // ── BarcodeDetector (Chrome/Edge/Android Chrome) ──
+          const codes = await nativeDet.detect(vid);
+          if (codes?.length) raw = codes[0].rawValue;
+
+        } else {
+          // ── jsQR (ทุกอุปกรณ์/เบราว์เซอร์) ──
+          const vw = vid.videoWidth;
+          const vh = vid.videoHeight;
+          scanCanvas.width  = vw;
+          scanCanvas.height = vh;
           scanCtx.drawImage(vid, 0, 0, vw, vh);
           const imgData = scanCtx.getImageData(0, 0, vw, vh);
-          const code    = jsQR(imgData.data, vw, vh, { inversionAttempts: 'dontInvert' });
-          if (code?.data) await handleDecoded(code.data.trim());
+          // ลอง normal + inverted เพื่อรองรับ QR ทุกรูปแบบ
+          const code = jsQR(imgData.data, vw, vh, { inversionAttempts: 'attemptBoth' });
+          if (code?.data) raw = code.data;
         }
-      } catch(e) {}
-      processing = false;
+
+        if (raw?.trim()) await handleDecoded(raw.trim());
+
+      } catch(e) { /* frame error — ปกติ */ }
+      busy = false;
     }
+
     rafId = requestAnimationFrame(loop);
   };
   rafId = requestAnimationFrame(loop);
-  window.__gumStream = stream;
-  return true;
-}
-
-function loadScript(src) {
-  return new Promise((resolve, reject) => {
-    if (document.querySelector('script[src="' + src + '"]')) return resolve();
-    const s = document.createElement('script');
-    s.src = src; s.onload = resolve; s.onerror = reject;
-    document.head.appendChild(s);
-  });
 }
 
 async function closeCamera() {
-  scanning = false; torchOn = false;
+  scanning = false;
+  torchOn  = false;
+  if (rafId)  { cancelAnimationFrame(rafId); rafId = null; }
+  if (camStream) {
+    try { camStream.getTracks().forEach(t => t.stop()); } catch(e) {}
+    camStream = null;
+  }
+  nativeDet  = null;
+  scanCanvas = null;
+  scanCtx    = null;
   if (scanLine) scanLine.style.display = 'none';
-  scanStatusEl.textContent = '⏸ หยุดสแกน';
-  setStatus('🟢', 'พร้อม');
-
-  if (html5Scanner) {
-    try { if (html5Scanner.isScanning) await html5Scanner.stop(); } catch(e){}
-    try { html5Scanner.clear(); } catch(e){} html5Scanner = null;
-  }
-  if (zxingReader) { try { zxingReader.reset(); } catch(e){} zxingReader = null; }
-  if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
-  if (window.__gumStream) {
-    try { window.__gumStream.getTracks().forEach(t=>t.stop()); } catch(e){}
-    window.__gumStream = null;
-  }
   const readerDiv = document.getElementById('qr-reader');
   if (readerDiv) readerDiv.innerHTML = '';
+  scanStatusEl.textContent = '⏸ หยุดสแกน';
+  setStatus('🟢', 'พร้อม');
   toast('ปิดกล้องแล้ว', 'ok');
 }
 
 async function toggleTorch() {
-  if (!scanning) { toast('เปิดกล้องก่อน', 'warn'); return; }
+  if (!camStream) { toast('เปิดกล้องก่อน', 'warn'); return; }
+  const track = camStream.getVideoTracks()[0];
+  const cap   = track?.getCapabilities?.() || {};
+  if (!cap.torch) { toast('อุปกรณ์นี้ไม่รองรับไฟฉาย', 'warn'); return; }
   try {
-    if (html5Scanner?.getRunningTrackCameraCapabilities) {
-      const cap = html5Scanner.getRunningTrackCameraCapabilities();
-      if (cap?.torchFeature?.()?.isSupported()) {
-        torchOn = !torchOn;
-        await cap.torchFeature().apply(torchOn);
-        toast(torchOn ? '🔦 เปิดไฟ' : '🔦 ปิดไฟ', 'ok');
-        return;
-      }
-    }
-    if (window.__gumStream) {
-      const track = window.__gumStream.getVideoTracks()[0];
-      const cap2  = track?.getCapabilities?.() || {};
-      if (cap2.torch) {
-        torchOn = !torchOn;
-        await track.applyConstraints({ advanced: [{ torch: torchOn }] });
-        toast(torchOn ? '🔦 เปิดไฟ' : '🔦 ปิดไฟ', 'ok');
-        return;
-      }
-    }
-    toast('อุปกรณ์นี้ไม่รองรับไฟฉาย', 'warn');
+    torchOn = !torchOn;
+    await track.applyConstraints({ advanced: [{ torch: torchOn }] });
+    toast(torchOn ? '🔦 เปิดไฟ' : '🔦 ปิดไฟ', 'ok');
   } catch(e) { toast('เปิด/ปิดไฟไม่สำเร็จ', 'err'); }
 }
 
@@ -985,11 +739,12 @@ function initScannerEngines() {}
 function startScanLoop() {}
 function stopScanLoop() {}
 
-// ═══════════════════════════════════════════════════════
-// CHECK-IN
-// ═══════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════
+// CHECK-IN — ส่ง POST ไปหา GAS
+// ═══════════════════════════════════════════════════════════
 async function handleDecoded(qr) {
   const now = Date.now();
+  // ลด debounce จาก 2500ms → 1500ms เพื่อความเร็ว
   if (lastHit.qr === qr && (now - lastHit.t) < 1500) return;
   lastHit = { qr, t: now };
   if (!selectedStation) { toast('ยังไม่เลือกฐาน', 'warn'); return; }
@@ -1022,34 +777,23 @@ async function handleDecoded(qr) {
   }
 
   const firstName = res.student?.first_name || qr;
-  const lastName  = res.student?.last_name  || '';
-  const fullName  = lastName ? `${firstName} ${lastName}` : firstName;
-  const timeStr   = res.server_time || '';
+  const timeStr   = res.server_time ? ` (${res.server_time})` : '';
 
   if (res.duplicate) {
     toast(`${firstName} เช็คอินแล้ว`, 'warn');
-    scanStatusEl.textContent = `🔄 ${firstName} เช็คอินแล้ว${timeStr ? ' (' + timeStr + ')' : ''}`;
+    scanStatusEl.textContent = `🔄 ${firstName} เช็คอินแล้ว${timeStr}`;
   } else {
-    // ── แสดง Fullscreen Success Overlay ──
-    showSuccessOverlay(
-      fullName,
-      (selectedStation?.emoji || '🏫') + ' ' + (selectedStation?.station_name || ''),
-      timeStr ? '⏰ ' + timeStr : ''
-    );
-
-    // toast ยังคงทำงานเหมือนเดิม
     toast(`ยินดีต้อนรับ ${firstName} 🎉`, 'ok');
-    scanStatusEl.textContent = `✅ สำเร็จ: ${firstName}${timeStr ? ' (' + timeStr + ')' : ''}`;
-
+    scanStatusEl.textContent = `✅ สำเร็จ: ${firstName}${timeStr}`;
     const wrap = document.getElementById('camWrap');
     wrap.classList.add('flash-ok');
     setTimeout(() => wrap.classList.remove('flash-ok'), 700);
   }
 }
 
-// ═══════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════
 // MANUAL INPUT
-// ═══════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════
 function openManual() {
   if (!selectedStation) { toast('เลือกฐานก่อน', 'warn'); return; }
   document.getElementById('manualModal').classList.add('open');
@@ -1065,9 +809,9 @@ async function submitManual() {
   await handleDecoded(v);
 }
 
-// ═══════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════
 // SUMMARY
-// ═══════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════
 async function openSummary() {
   document.getElementById('summaryModal').classList.add('open');
   document.getElementById('summaryContent').innerHTML =
@@ -1139,9 +883,9 @@ async function openSummary() {
 }
 function closeSummary() { document.getElementById('summaryModal').classList.remove('open'); }
 
-// ═══════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════
 // QR GENERATOR
-// ═══════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════
 let allStudents = [];
 
 function openQr() {
@@ -1186,8 +930,8 @@ window.previewQr = function (code) {
   const p = document.getElementById('qrPreview');
   p.innerHTML = '';
   new QRCode(p, { text: s.qr_code, width: 200, height: 200, correctLevel: QRCode.CorrectLevel.H });
-  document.getElementById('qrName').textContent   = `${s.first_name} ${s.last_name}`;
-  document.getElementById('qrDetail').textContent = [
+  document.getElementById('qrName').textContent    = `${s.first_name} ${s.last_name}`;
+  document.getElementById('qrDetail').textContent  = [
     s.grade  ? 'ชั้น ' + s.grade    : '',
     s.room   ? 'ห้อง ' + s.room    : '',
     s.number ? 'เลขที่ ' + s.number : ''
@@ -1205,21 +949,27 @@ document.getElementById('qrSearch').addEventListener('input', e => {
   ));
 });
 
-// ═══════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════
 // EVENT LISTENERS
-// ═══════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════
 document.getElementById('btnReload').addEventListener('click', loadStations);
-document.getElementById('btnStart').addEventListener('click', async () => { await openCamera(); });
+
+document.getElementById('btnStart').addEventListener('click', async () => {
+  await openCamera();
+});
 document.getElementById('btnStop').addEventListener('click', closeCamera);
 document.getElementById('btnTorch').addEventListener('click', toggleTorch);
+
 document.getElementById('btnManual').addEventListener('click', openManual);
 document.getElementById('btnManualCancel').addEventListener('click', closeManual);
 document.getElementById('btnManualOK').addEventListener('click', submitManual);
 document.getElementById('manualInput').addEventListener('keydown', e => { if (e.key === 'Enter') submitManual(); });
 document.getElementById('manualModal').addEventListener('click', e => { if (e.target === e.currentTarget) closeManual(); });
+
 document.getElementById('btnSummary').addEventListener('click', openSummary);
 document.getElementById('btnSummaryClose').addEventListener('click', closeSummary);
 document.getElementById('summaryModal').addEventListener('click', e => { if (e.target === e.currentTarget) closeSummary(); });
+
 document.getElementById('btnGenQR').addEventListener('click', openQr);
 document.getElementById('btnQrClose').addEventListener('click', closeQr);
 document.getElementById('qrModal').addEventListener('click', e => { if (e.target === e.currentTarget) closeQr(); });
