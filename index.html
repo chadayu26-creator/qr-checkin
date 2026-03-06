@@ -4,74 +4,39 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>🦊 QR Check-in | โรงเรียนคลองใหม่</title>
-
-  <!-- ✅ กล้องทำงานได้เพราะไม่ผ่าน iframe GAS -->
   <meta http-equiv="Permissions-Policy" content="camera=*, microphone=()">
-
-  <!-- ✅ Multi-engine scanner: รองรับ iOS/Android/iPad/PC ทุกรุ่น -->
   <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@zxing/browser@0.1.5/umd/index.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;600;800;900&display=swap" rel="stylesheet">
 
   <style>
-    /* ── Reset & Base ── */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
-      --purple: #7c3aed;
-      --pink:   #ec4899;
-      --green:  #22c55e;
-      --orange: #f97316;
-      --indigo: #4f46e5;
-      --dark:   #0f172a;
-      --card:   #ffffff;
-      --bg:     #f0f4ff;
-      --text:   #1e293b;
-      --muted:  #64748b;
-      --border: #e2e8f0;
-      --radius: 20px;
+      --purple: #7c3aed; --pink: #ec4899; --green: #22c55e;
+      --orange: #f97316; --indigo: #4f46e5; --dark: #0f172a;
+      --card: #ffffff; --bg: #f0f4ff; --text: #1e293b;
+      --muted: #64748b; --border: #e2e8f0; --radius: 20px;
       --shadow: 0 4px 24px rgba(0,0,0,.09);
     }
     html { scroll-behavior: smooth; }
     body {
       font-family: 'Prompt', sans-serif;
       background: linear-gradient(160deg, #dbeafe 0%, #ede9fe 40%, #fce7f3 70%, #fef9c3 100%);
-      min-height: 100vh;
-      color: var(--text);
+      min-height: 100vh; color: var(--text);
     }
-
-    /* ── Header ── */
     header {
       position: sticky; top: 0; z-index: 30;
       background: linear-gradient(90deg, #4f46e5, #7c3aed, #ec4899);
-      color: #fff;
-      box-shadow: 0 4px 20px rgba(124,58,237,.35);
+      color: #fff; box-shadow: 0 4px 20px rgba(124,58,237,.35);
     }
     .hdr { max-width: 900px; margin: auto; padding: 11px 16px; display: flex; align-items: center; justify-content: space-between; }
     .hdr-title { font-size: 1.05rem; font-weight: 900; letter-spacing: -.5px; }
     .hdr-sub   { font-size: .7rem; opacity: .8; margin-top: 1px; }
-    .status-pill {
-      padding: .3rem .85rem; border-radius: 999px;
-      background: rgba(255,255,255,.18); font-size: .75rem; font-weight: 800;
-      display: flex; align-items: center; gap: 5px; white-space: nowrap;
-    }
-
-    /* ── Main ── */
+    .status-pill { padding: .3rem .85rem; border-radius: 999px; background: rgba(255,255,255,.18); font-size: .75rem; font-weight: 800; display: flex; align-items: center; gap: 5px; white-space: nowrap; }
     main { max-width: 900px; margin: auto; padding: 14px 12px; }
-
-    /* ── Card ── */
-    .card {
-      background: var(--card); border-radius: var(--radius);
-      padding: 16px; box-shadow: var(--shadow); margin-bottom: 12px;
-    }
-
-    /* ── Buttons ── */
-    .btn {
-      border-radius: 999px; padding: .62rem 1.05rem; font-weight: 800;
-      font-family: 'Prompt', sans-serif; font-size: .82rem; border: none;
-      cursor: pointer; display: inline-flex; align-items: center; gap: 5px;
-      transition: transform .12s, box-shadow .12s; white-space: nowrap;
-    }
+    .card { background: var(--card); border-radius: var(--radius); padding: 16px; box-shadow: var(--shadow); margin-bottom: 12px; }
+    .btn { border-radius: 999px; padding: .62rem 1.05rem; font-weight: 800; font-family: 'Prompt', sans-serif; font-size: .82rem; border: none; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; transition: transform .12s, box-shadow .12s; white-space: nowrap; }
     .btn:active { transform: scale(.95); }
     .btn-green  { background: var(--green);  color: #fff; box-shadow: 0 4px 14px rgba(34,197,94,.35); }
     .btn-dark   { background: var(--dark);   color: #fff; }
@@ -82,213 +47,178 @@
     .btn-white  { background: #fff; border: 2px solid var(--border); color: var(--dark); }
     .btn-row    { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 13px; }
 
-    /* ── Camera ── */
-    .cam-wrap {
-      position: relative; aspect-ratio: 1/1;
-      border-radius: 18px; overflow: hidden;
-      border: 3px solid #fde047; margin-top: 13px;
-      background: #111827;
-    }
-    /* html5-qrcode + gum-video + zxing-video */
-    #qr-reader {
-      width:100%; height:100%;
-      background:#111827; border-radius:16px;
-      overflow:hidden; position:relative;
-      display:flex; align-items:center; justify-content:center;
-    }
-    /* video ทุกตัวใน #qr-reader ต้องเห็นเต็มกรอบ */
-    #qr-reader video,
-    #gum-video,
-    #zxing-video {
-      position:absolute!important;
-      top:0!important; left:0!important;
-      width:100%!important; height:100%!important;
-      object-fit:cover!important;
-      border-radius:16px!important;
-      display:block!important;
-      visibility:visible!important;
-      opacity:1!important;
-      z-index:1!important;
-    }
-    /* ซ่อน UI ที่ไม่ต้องการของ html5-qrcode */
-    #qr-reader img                { display:none!important; }
-    #qr-reader__dashboard         { display:none!important; }
-    #qr-reader__status_span       { display:none!important; }
-    #qr-reader__camera_selection  { display:none!important; }
-    #qr-reader__camera_permission { display:none!important; }
-    #qr-reader__filescan_input    { display:none!important; }
-    #qr-reader__header_message    { display:none!important; }
-    /* scan frame overlay อยู่บน video */
+    .cam-wrap { position: relative; aspect-ratio: 1/1; border-radius: 18px; overflow: hidden; border: 3px solid #fde047; margin-top: 13px; background: #111827; }
+    #qr-reader { width:100%; height:100%; background:#111827; border-radius:16px; overflow:hidden; position:relative; display:flex; align-items:center; justify-content:center; }
+    #qr-reader video, #gum-video, #zxing-video { position:absolute!important; top:0!important; left:0!important; width:100%!important; height:100%!important; object-fit:cover!important; border-radius:16px!important; display:block!important; visibility:visible!important; opacity:1!important; z-index:1!important; }
+    #qr-reader img { display:none!important; }
+    #qr-reader__dashboard, #qr-reader__status_span, #qr-reader__camera_selection, #qr-reader__camera_permission, #qr-reader__filescan_input, #qr-reader__header_message { display:none!important; }
     .scan-frame, .cam-badge { z-index:10!important; }
-    .cam-badge {
-      position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
-      background: rgba(0,0,0,.62); backdrop-filter: blur(8px);
-      color: #fff; border: 2px solid #fde047; border-radius: 999px;
-      padding: .28rem .85rem; font-weight: 800; font-size: .78rem;
-      white-space: nowrap; z-index: 2; max-width: 90%;
-      overflow: hidden; text-overflow: ellipsis;
-    }
-    .scan-frame {
-      position: absolute; inset: 0;
-      display: flex; align-items: center; justify-content: center;
-      pointer-events: none;
-    }
-    .scan-frame-box {
-      width: 72%; height: 72%;
-      border-radius: 22px; border: 4px solid rgba(34,197,94,.75);
-      position: relative;
-    }
-    /* corner marks */
-    .scan-frame-box::before,
-    .scan-frame-box::after {
-      content: ''; position: absolute;
-      width: 24px; height: 24px; border-color: #22c55e; border-style: solid;
-    }
-    .scan-frame-box::before { top: -4px; left: -4px; border-width: 4px 0 0 4px; border-radius: 6px 0 0 0; }
-    .scan-frame-box::after  { bottom: -4px; right: -4px; border-width: 0 4px 4px 0; border-radius: 0 0 6px 0; }
-
+    .cam-badge { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,.62); backdrop-filter: blur(8px); color: #fff; border: 2px solid #fde047; border-radius: 999px; padding: .28rem .85rem; font-weight: 800; font-size: .78rem; white-space: nowrap; z-index: 2; max-width: 90%; overflow: hidden; text-overflow: ellipsis; }
+    .scan-frame { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; pointer-events: none; }
+    .scan-frame-box { width: 72%; height: 72%; border-radius: 22px; border: 4px solid rgba(34,197,94,.75); position: relative; }
+    .scan-frame-box::before, .scan-frame-box::after { content: ''; position: absolute; width: 24px; height: 24px; border-color: #22c55e; border-style: solid; }
+    .scan-frame-box::before { top:-4px; left:-4px; border-width:4px 0 0 4px; border-radius:6px 0 0 0; }
+    .scan-frame-box::after  { bottom:-4px; right:-4px; border-width:0 4px 4px 0; border-radius:0 0 6px 0; }
     @keyframes scanline { 0%{top:8%} 100%{top:88%} }
-    .scan-line {
-      position: absolute; left: 5%; width: 90%; height: 3px;
-      background: linear-gradient(90deg, transparent, #22c55e, transparent);
-      border-radius: 2px; animation: scanline 2s ease-in-out infinite alternate;
-      display: none;
-    }
-    @keyframes flashGreen { 0%,100%{box-shadow:none} 50%{box-shadow:0 0 0 16px rgba(34,197,94,.3)} }
-    .flash-ok { animation: flashGreen .55s ease; }
+    .scan-line { position: absolute; left: 5%; width: 90%; height: 3px; background: linear-gradient(90deg, transparent, #22c55e, transparent); border-radius: 2px; animation: scanline 2s ease-in-out infinite alternate; display: none; }
 
-    /* ── Stations ── */
     .stations-grid { display: grid; grid-template-columns: repeat(2,1fr); gap: 9px; margin-top: 12px; }
     @media(min-width:520px){ .stations-grid{grid-template-columns:repeat(4,1fr)} }
-    .station-btn {
-      text-align: left; padding: 12px; border-radius: 16px;
-      border: 2px solid var(--border); background: #fff;
-      cursor: pointer; font-family: 'Prompt', sans-serif;
-      width: 100%; transition: border-color .15s, background .15s;
-    }
+    .station-btn { text-align: left; padding: 12px; border-radius: 16px; border: 2px solid var(--border); background: #fff; cursor: pointer; font-family: 'Prompt', sans-serif; width: 100%; transition: border-color .15s, background .15s; }
     .station-btn:hover  { border-color: #c084fc; background: #faf5ff; }
     .station-btn.active { border-color: var(--purple); background: #f3e8ff; }
     .st-emoji { font-size: 1.7rem; }
     .st-name  { font-weight: 800; font-size: .84rem; margin-top: 5px; }
     .st-id    { font-size: .68rem; color: var(--muted); }
-    .no-station {
-      grid-column: 1/-1; text-align: center;
-      background: #fffbeb; border: 2px solid #fde68a;
-      border-radius: 14px; padding: 16px;
-      font-weight: 700; color: #92400e;
-    }
+    .no-station { grid-column: 1/-1; text-align: center; background: #fffbeb; border: 2px solid #fde68a; border-radius: 14px; padding: 16px; font-weight: 700; color: #92400e; }
 
-    /* ── Toast ── */
-.toast {
-  position: fixed;
-  left: 50%;
-  bottom: 40px;
+    .toast { position: fixed; left: 50%; bottom: 20px; transform: translate(-50%, 130%); transition: transform .25s cubic-bezier(.34,1.56,.64,1); z-index: 99; background: #fff; border-radius: 999px; padding: .65rem 1.1rem; box-shadow: 0 14px 35px rgba(0,0,0,.18); border: 3px solid var(--green); max-width: 92vw; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 800; font-size: .84rem; pointer-events: none; }
+    .toast.show { transform: translate(-50%, 0); }
+    .toast.warn { border-color: var(--orange); }
+    .toast.err  { border-color: #ef4444; }
 
-  transform: translate(-50%, 130%);
-  transition: transform .25s cubic-bezier(.34,1.56,.64,1);
-
-  z-index: 99;
-  background: #fff;
-
-  border-radius: 40px;
-  padding: 30px 60px;
-
-  box-shadow: 0 20px 45px rgba(0,0,0,.25);
-
-  border: 4px solid var(--green);
-
-  max-width: 95vw;
-
-  font-weight: 900;
-  font-size: 2.5rem;
-
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-
-  pointer-events: none;
-}
-    .toast.show  { transform: translate(-50%, 0); }
-    .toast.warn  { border-color: var(--orange); }
-    .toast.err   { border-color: #ef4444; }
-
-    /* ── Modal ── */
-    .modal-bg {
-      position: fixed; inset: 0; background: rgba(0,0,0,.5);
-      backdrop-filter: blur(6px); display: none;
+    /* ════════════════════════════════════════
+       ✅ FULLSCREEN SUCCESS NOTIFICATION
+       ════════════════════════════════════════ */
+    #successOverlay {
+      position: fixed; inset: 0; z-index: 200;
+      display: flex; flex-direction: column;
       align-items: center; justify-content: center;
-      padding: 16px; z-index: 50;
+      opacity: 0; pointer-events: none;
+      transition: opacity .2s ease;
     }
+    #successOverlay.show { opacity: 1; pointer-events: auto; }
+
+    /* พื้นหลังไล่สีเขียว */
+    .s-bg {
+      position: absolute; inset: 0;
+      background: linear-gradient(160deg, #052e16 0%, #14532d 40%, #166534 100%);
+    }
+
+    /* ripple วงกลมขยายออก */
+    .s-ripple { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+    .s-ripple span {
+      position: absolute; top: 50%; left: 50%;
+      width: 0; height: 0;
+      border-radius: 50%;
+      background: rgba(255,255,255,.12);
+      transform: translate(-50%,-50%);
+    }
+    @keyframes ripple {
+      0%   { width: 0;     height: 0;     opacity: .6; }
+      100% { width: 200vmax; height: 200vmax; opacity: 0; }
+    }
+    #successOverlay.show .s-ripple span:nth-child(1) { animation: ripple 1s ease-out .05s both; }
+    #successOverlay.show .s-ripple span:nth-child(2) { animation: ripple 1s ease-out .3s  both; }
+    #successOverlay.show .s-ripple span:nth-child(3) { animation: ripple 1s ease-out .55s both; }
+
+    /* ไอคอน checkmark */
+    .s-icon {
+      position: relative; z-index: 2;
+      font-size: clamp(5rem, 20vw, 9rem); line-height: 1;
+      transform: scale(0) rotate(-20deg);
+      transition: transform .4s cubic-bezier(.34,1.56,.64,1) .1s;
+      filter: drop-shadow(0 8px 32px rgba(0,0,0,.4));
+    }
+    #successOverlay.show .s-icon { transform: scale(1) rotate(0deg); }
+
+    /* ข้อความ */
+    .s-body {
+      position: relative; z-index: 2;
+      text-align: center; color: #fff;
+      margin-top: 28px; padding: 0 28px;
+      transform: translateY(32px); opacity: 0;
+      transition: transform .35s ease .2s, opacity .35s ease .2s;
+    }
+    #successOverlay.show .s-body { transform: translateY(0); opacity: 1; }
+
+    .s-name {
+      font-size: clamp(1.9rem, 8vw, 4rem);
+      font-weight: 900; line-height: 1.1;
+      text-shadow: 0 3px 20px rgba(0,0,0,.4);
+    }
+    .s-welcome {
+      font-size: clamp(.95rem, 3.5vw, 1.4rem);
+      font-weight: 700; opacity: .9; margin-top: 6px;
+    }
+    .s-station {
+      display: inline-block; margin-top: 16px;
+      background: rgba(255,255,255,.18);
+      backdrop-filter: blur(12px);
+      border: 2px solid rgba(255,255,255,.35);
+      border-radius: 999px; padding: .5rem 1.4rem;
+      font-size: clamp(.82rem, 2.8vw, 1.05rem);
+      font-weight: 800;
+    }
+    .s-time {
+      display: block; margin-top: 10px;
+      font-size: .78rem; font-weight: 600; opacity: .6;
+    }
+    .s-tap-hint {
+      position: absolute; bottom: 36px; left: 0; right: 0;
+      text-align: center; color: rgba(255,255,255,.45);
+      font-size: .78rem; font-weight: 600; z-index: 2;
+      animation: fadeInUp .5s ease .8s both;
+    }
+    @keyframes fadeInUp { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+
+    /* confetti */
+    .s-confetti { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 1; }
+    @keyframes cfFall {
+      0%   { transform: translateY(-16px) rotate(0deg); opacity: 1; }
+      100% { transform: translateY(108vh) rotate(900deg); opacity: 0; }
+    }
+    .cf { position: absolute; opacity: 0; border-radius: 2px; }
+
+    .modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,.5); backdrop-filter: blur(6px); display: none; align-items: center; justify-content: center; padding: 16px; z-index: 50; }
     .modal-bg.open { display: flex; }
-    .modal-box {
-      background: #fff; border-radius: 24px;
-      padding: 22px; width: 100%; max-width: 420px;
-      animation: popIn .22s ease;
-    }
+    .modal-box { background: #fff; border-radius: 24px; padding: 22px; width: 100%; max-width: 420px; animation: popIn .22s ease; }
     .modal-box.wide { max-width: 660px; max-height: 90vh; overflow-y: auto; }
     @keyframes popIn { from{transform:scale(.9);opacity:0} to{transform:scale(1);opacity:1} }
     .modal-title { text-align: center; font-weight: 800; font-size: 1.1rem; margin-top: 8px; }
     .modal-sub   { text-align: center; font-size: .75rem; color: var(--muted); margin-top: 4px; }
-    .modal-input {
-      width: 100%; text-align: center; font-weight: 800;
-      font-size: 1.2rem; letter-spacing: .06em;
-      border-radius: 16px; border: 3px solid var(--border);
-      padding: 10px 14px; outline: none;
-      font-family: 'Prompt', sans-serif; margin-top: 13px;
-    }
+    .modal-input { width: 100%; text-align: center; font-weight: 800; font-size: 1.2rem; letter-spacing: .06em; border-radius: 16px; border: 3px solid var(--border); padding: 10px 14px; outline: none; font-family: 'Prompt', sans-serif; margin-top: 13px; }
     .modal-input:focus { border-color: var(--purple); }
     .modal-footer { display: flex; gap: 8px; margin-top: 14px; }
-
-    /* ── QR List ── */
     .qr-list { display: grid; grid-template-columns: repeat(2,1fr); gap: 8px; margin-top: 12px; }
     @media(min-width:480px){ .qr-list{grid-template-columns:repeat(3,1fr)} }
-    .qr-item {
-      text-align: left; padding: 10px; border-radius: 14px;
-      border: 2px solid var(--border); background: #fff;
-      cursor: pointer; font-family: 'Prompt', sans-serif; width: 100%;
-      transition: border-color .12s;
-    }
+    .qr-item { text-align: left; padding: 10px; border-radius: 14px; border: 2px solid var(--border); background: #fff; cursor: pointer; font-family: 'Prompt', sans-serif; width: 100%; transition: border-color .12s; }
     .qr-item:hover { border-color: var(--purple); }
-    .qr-pill  { display: inline-block; padding: .15rem .55rem; border-radius: 999px; background: var(--purple); color: #fff; font-weight: 800; font-size: .68rem; }
-    .qr-name  { font-weight: 800; font-size: .8rem; margin-top: 4px; }
-    .qr-det   { font-size: .68rem; color: var(--muted); }
-    .qr-prev  { margin-top: 14px; border: 2px solid var(--border); border-radius: 16px; padding: 16px; display: none; }
+    .qr-pill { display: inline-block; padding: .15rem .55rem; border-radius: 999px; background: var(--purple); color: #fff; font-weight: 800; font-size: .68rem; }
+    .qr-name { font-weight: 800; font-size: .8rem; margin-top: 4px; }
+    .qr-det  { font-size: .68rem; color: var(--muted); }
+    .qr-prev { margin-top: 14px; border: 2px solid var(--border); border-radius: 16px; padding: 16px; display: none; }
     .qr-prev.open { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; justify-content: center; }
 
-    /* ── Misc ── */
     .flex-between { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
     .sec-title    { font-weight: 800; font-size: 1rem; color: #5b21b6; }
     .hint         { font-size: .73rem; color: var(--muted); margin-top: 3px; }
     #scanStatus   { font-size: .78rem; color: var(--muted); margin-top: 4px; }
     .server-time  { font-size: .68rem; color: var(--muted); }
-    .inapp-warn   {
-      background: #fffbeb; border: 2px solid #fcd34d;
-      border-radius: 14px; padding: 12px; margin-bottom: 10px; display: none;
-    }
-
-    /* ── Config Banner (ซ่อน) ── */
+    .inapp-warn   { background: #fffbeb; border: 2px solid #fcd34d; border-radius: 14px; padding: 12px; margin-bottom: 10px; display: none; }
     #configBanner { display: none; }
-
-    /* Loading overlay */
-    #loadingOverlay {
-      position:fixed;inset:0;background:rgba(255,255,255,.85);
-      display:flex;flex-direction:column;align-items:center;justify-content:center;
-      z-index:100;font-weight:800;font-size:1rem;gap:12px;
-    }
-    .spinner {
-      width:44px;height:44px;border:5px solid #e2e8f0;
-      border-top-color:var(--purple);border-radius:50%;
-      animation:spin .7s linear infinite;
-    }
+    #loadingOverlay { position:fixed;inset:0;background:rgba(255,255,255,.85);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:100;font-weight:800;font-size:1rem;gap:12px; }
+    .spinner { width:44px;height:44px;border:5px solid #e2e8f0;border-top-color:var(--purple);border-radius:50%;animation:spin .7s linear infinite; }
     @keyframes spin{to{transform:rotate(360deg)}}
   </style>
 </head>
 <body>
 
-<!-- Loading -->
-<div id="loadingOverlay">
-  <div class="spinner"></div>
-  <div>กำลังโหลด...</div>
+<div id="loadingOverlay"><div class="spinner"></div><div>กำลังโหลด...</div></div>
+
+<!-- ✅ FULLSCREEN SUCCESS OVERLAY -->
+<div id="successOverlay">
+  <div class="s-bg"></div>
+  <div class="s-ripple"><span></span><span></span><span></span></div>
+  <div class="s-confetti" id="sConfetti"></div>
+  <div class="s-icon">✅</div>
+  <div class="s-body">
+    <div class="s-name"    id="sName"></div>
+    <div class="s-welcome">เช็คอินสำเร็จ! 🎉</div>
+    <div class="s-station" id="sStation"></div>
+    <span class="s-time"   id="sTime"></span>
+  </div>
+  <div class="s-tap-hint">แตะที่ใดก็ได้เพื่อปิด</div>
 </div>
 
 <header>
@@ -297,34 +227,17 @@
       <div class="hdr-title">🦊 QR Check-in</div>
       <div class="hdr-sub">Multi-Engine Scanner (iOS · Android · iPad · PC)</div>
     </div>
-    <div class="status-pill">
-      <span id="statusDot">🟢</span>
-      <span id="statusText">พร้อม</span>
-    </div>
+    <div class="status-pill"><span id="statusDot">🟢</span><span id="statusText">พร้อม</span></div>
   </div>
 </header>
 
 <main>
-
-  <!-- แจ้งเตือน LINE in-app -->
   <div id="inAppWarn" class="inapp-warn">
     <b style="color:#92400e">⚠️ เปิดจาก LINE/แอปอื่น — กล้องอาจไม่ทำงาน</b>
     <div style="font-size:.8rem;color:#92400e;margin-top:4px">กด ⋯ → <b>Open in browser</b> (Chrome/Safari)</div>
   </div>
+  <div id="configBanner"></div>
 
-  <!-- Config GAS URL -->
-  <div id="configBanner">
-    <h3>⚙️ ตั้งค่า GAS Web App URL</h3>
-    <input id="gasUrlInput" type="url" placeholder="https://script.google.com/macros/s/XXXXX/exec" autocomplete="off" />
-    <p>วาง URL จาก Google Apps Script → Deploy → Web App แล้วกด Save</p>
-    <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
-      <button class="btn btn-indigo" onclick="saveGasUrl()">💾 Save URL</button>
-      <button class="btn btn-white"  onclick="testConnection()">🔌 Test Connection</button>
-    </div>
-    <div id="connStatus" style="font-size:.78rem;margin-top:8px;font-weight:700"></div>
-  </div>
-
-  <!-- Scanner Card -->
   <div class="card">
     <div class="flex-between">
       <div>
@@ -333,19 +246,11 @@
       </div>
       <div class="server-time" id="serverTimeEl"></div>
     </div>
-
     <div class="cam-wrap" id="camWrap">
-      <!-- html5-qrcode จะ inject video ใน #qr-reader -->
       <div id="qr-reader" style="width:100%;height:100%;border-radius:16px;overflow:hidden"></div>
-      <!-- overlay -->
       <div class="cam-badge" id="camBadge">ยังไม่เลือกฐาน</div>
-      <div class="scan-frame">
-        <div class="scan-frame-box">
-          <div class="scan-line" id="scanLine"></div>
-        </div>
-      </div>
+      <div class="scan-frame"><div class="scan-frame-box"><div class="scan-line" id="scanLine"></div></div></div>
     </div>
-
     <div class="btn-row">
       <button id="btnStart"   class="btn btn-green">📷 เปิดกล้อง</button>
       <button id="btnStop"    class="btn btn-dark">⏹ ปิด</button>
@@ -356,18 +261,13 @@
     </div>
   </div>
 
-  <!-- Stations -->
   <div class="card">
     <div class="flex-between">
-      <div>
-        <div class="sec-title">🏫 เลือกฐานกิจกรรม</div>
-        <div class="hint" id="hint"></div>
-      </div>
+      <div><div class="sec-title">🏫 เลือกฐานกิจกรรม</div><div class="hint" id="hint"></div></div>
       <button id="btnReload" class="btn btn-white">🔄 รีโหลด</button>
     </div>
     <div id="stationsGrid" class="stations-grid"></div>
   </div>
-
 </main>
 
 <!-- Manual Modal -->
@@ -390,9 +290,7 @@
     <div style="text-align:center;font-size:2rem">🎴</div>
     <div class="modal-title">สร้าง QR Code นักเรียน</div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
-      <input id="qrSearch"
-        style="flex:1;min-width:180px;border-radius:14px;border:2px solid var(--border);padding:8px 12px;outline:none;font-family:'Prompt',sans-serif;font-size:.85rem"
-        placeholder="ค้นหา: รหัส/ชื่อ/สกุล" autocomplete="off" />
+      <input id="qrSearch" style="flex:1;min-width:180px;border-radius:14px;border:2px solid var(--border);padding:8px 12px;outline:none;font-family:'Prompt',sans-serif;font-size:.85rem" placeholder="ค้นหา: รหัส/ชื่อ/สกุล" autocomplete="off" />
       <button id="btnQrClose" class="btn btn-white">❌ ปิด</button>
     </div>
     <div id="qrList" class="qr-list"></div>
@@ -418,776 +316,465 @@
   </div>
 </div>
 
-<!-- Toast -->
 <div id="toast" class="toast"><span id="toastText"></span></div>
 
 <script>
 'use strict';
 
-// ═══════════════════════════════════════════════════════════
-// CONFIG — แก้ไข GAS_URL หรือกรอกในช่อง input บนหน้าจอ
-// ═══════════════════════════════════════════════════════════
-// ✅ GAS URL ฝังตายตัว — ไม่ต้องตั้งค่า
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbzY6gC2y9UdKosuARHRoFW-lpXhjnC8Q3-5jLrLMHGIlEJwFmp2X-qCbdX0RVDlllD2jQ/exec';
-
 function getGasUrl() { return GAS_URL; }
 function saveGasUrl() {}
 function testConnection() {}
 
-// ═══════════════════════════════════════════════════════════
-// API — fetch ไปหา GAS (แทน google.script.run)
-// ═══════════════════════════════════════════════════════════
-
-// GET request (สำหรับ ping, stations)
 async function gasGet(action, overrideUrl) {
   const base = overrideUrl || getGasUrl();
-  if (!base) throw new Error('NO_GAS_URL');
-  const url = base + '?action=' + encodeURIComponent(action);
-  const res = await fetch(url, { method: 'GET', redirect: 'follow' });
+  const res = await fetch(base + '?action=' + encodeURIComponent(action), { method: 'GET', redirect: 'follow' });
   return res.json();
 }
-
-// POST request (สำหรับ checkin และอื่นๆ)
 async function gasPost(payload) {
-  const url = getGasUrl();
-  if (!url) throw new Error('NO_GAS_URL');
-  const res = await fetch(url, {
-    method: 'POST',
-    redirect: 'follow',
-    headers: { 'Content-Type': 'text/plain' }, // GAS ต้องการ text/plain เพื่อหลีก CORS preflight
-    body: JSON.stringify(payload)
-  });
+  const res = await fetch(getGasUrl(), { method: 'POST', redirect: 'follow', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(payload) });
   return res.json();
 }
+async function gsGetStations() { return gasGet('stations'); }
+async function gsCheckin(p)    { return gasPost({ action: 'checkin', ...p }); }
+async function gsGetFullStats(){ return gasPost({ action: 'getFullStats' }); }
+async function gsGetStudents() { return gasPost({ action: 'getStudents' }); }
 
-// Wrapper functions ที่ตรงกับ gsRun เดิม
-async function gsGetStations() {
-  return gasGet('stations');
-}
-async function gsCheckin(payload) {
-  return gasPost({ action: 'checkin', ...payload });
-}
-async function gsGetFullStats() {
-  // GAS ยังไม่มี GET endpoint สำหรับ stats → ใช้ POST
-  return gasPost({ action: 'getFullStats' });
-}
-async function gsGetStudents() {
-  return gasPost({ action: 'getStudents' });
-}
-
-// ═══════════════════════════════════════════════════════════
-// UTILITIES
-// ═══════════════════════════════════════════════════════════
+// ── Utilities ──
 function toast(msg, type = 'ok') {
-  const t  = document.getElementById('toast');
-  const tx = document.getElementById('toastText');
-  t.className = 'toast' + (type === 'warn' ? ' warn' : type === 'err' ? ' err' : '');
-  tx.textContent = (type === 'ok' ? '✅' : type === 'warn' ? '⚠️' : '❌') + ' ' + msg;
-  t.classList.add('show');
-  clearTimeout(window.__tt);
+  const t = document.getElementById('toast');
+  t.className = 'toast' + (type==='warn'?' warn':type==='err'?' err':'');
+  document.getElementById('toastText').textContent = (type==='ok'?'✅':type==='warn'?'⚠️':'❌') + ' ' + msg;
+  t.classList.add('show'); clearTimeout(window.__tt);
   window.__tt = setTimeout(() => t.classList.remove('show'), 3200);
 }
+function setStatus(dot, text) { document.getElementById('statusDot').textContent = dot; document.getElementById('statusText').textContent = text; }
+function hideLoading() { const el = document.getElementById('loadingOverlay'); if (el) el.style.display = 'none'; }
 
-function setStatus(dot, text) {
-  document.getElementById('statusDot').textContent = dot;
-  document.getElementById('statusText').textContent = text;
+// ══════════════════════════════════════════════════════════
+// ✅ FULLSCREEN SUCCESS NOTIFICATION
+// ══════════════════════════════════════════════════════════
+let _sTimer = null;
+
+function showSuccess(fullName, stationName, timeStr) {
+  const ov = document.getElementById('successOverlay');
+
+  // ใส่ข้อมูล
+  document.getElementById('sName').textContent    = fullName;
+  document.getElementById('sStation').textContent = '📍 ' + stationName;
+  document.getElementById('sTime').textContent    = timeStr ? '🕐 ' + timeStr : '';
+
+  // รีเซ็ต state animation
+  ov.classList.remove('show');
+  document.getElementById('sConfetti').innerHTML = '';
+  void ov.offsetWidth; // force reflow
+
+  // เปิด overlay
+  ov.classList.add('show');
+
+  // สร้าง confetti
+  spawnConfetti();
+
+  // ปิดอัตโนมัติ 3 วิ
+  clearTimeout(_sTimer);
+  _sTimer = setTimeout(hideSuccess, 3000);
+
+  // แตะที่ไหนก็ปิด
+  ov.onclick = hideSuccess;
 }
 
-function hideLoading() {
-  const el = document.getElementById('loadingOverlay');
-  if (el) el.style.display = 'none';
+function hideSuccess() {
+  clearTimeout(_sTimer);
+  document.getElementById('successOverlay').classList.remove('show');
 }
 
-// ═══════════════════════════════════════════════════════════
-// IN-APP BROWSER
-// ═══════════════════════════════════════════════════════════
-(function () {
-  if (/Line|FBAN|FBAV|Instagram|Twitter|TikTok/i.test(navigator.userAgent || '')) {
-    document.getElementById('inAppWarn').style.display = 'block';
+function spawnConfetti() {
+  const wrap   = document.getElementById('sConfetti');
+  const colors = ['#fde047','#f9a8d4','#86efac','#93c5fd','#c4b5fd','#fb923c','#fff','#fca5a5','#6ee7b7'];
+  for (let i = 0; i < 80; i++) {
+    const el  = document.createElement('div');
+    el.className = 'cf';
+    const sz    = 5 + Math.random() * 13;
+    const isCircle = Math.random() > .45;
+    const duration = 1.2 + Math.random() * 2;
+    const delay    = Math.random() * .9;
+    el.style.cssText = `
+      width:${sz}px; height:${isCircle ? sz : sz*.5}px;
+      background:${colors[Math.floor(Math.random() * colors.length)]};
+      left:${Math.random() * 100}%; top:-${sz}px;
+      border-radius:${isCircle ? '50%' : '3px'};
+      animation: cfFall ${duration}s ease ${delay}s forwards;
+    `;
+    wrap.appendChild(el);
   }
+}
+
+// ── In-App Browser ──
+(function () {
+  if (/Line|FBAN|FBAV|Instagram|Twitter|TikTok/i.test(navigator.userAgent || ''))
+    document.getElementById('inAppWarn').style.display = 'block';
 })();
 
-// ═══════════════════════════════════════════════════════════
-// STATE
-// ═══════════════════════════════════════════════════════════
-let stations        = [];
-let selectedStation = null;
-let scanning        = false;
-let torchOn         = false;
-let lastHit         = { qr: '', t: 0 };
-// scanner instances
-let html5Scanner    = null;  // html5-qrcode (primary)
-let zxingReader     = null;  // ZXing (fallback)
-let nativeDetector  = null;  // BarcodeDetector (fast path)
-let rafId           = null;
-let scanCanvas      = null;
-let scanCtx         = null;
-
-// set เก็บ qr ที่แจ้งเตือน duplicate ไปแล้ว (reset เมื่อเปลี่ยนฐาน)
+// ── State ──
+let stations = [], selectedStation = null, scanning = false, torchOn = false;
+let lastHit = { qr: '', t: 0 };
+let html5Scanner = null, zxingReader = null, nativeDetector = null;
+let rafId = null, scanCanvas = null, scanCtx = null;
 const shownDupWarning = new Set();
 const scanStatusEl = document.getElementById('scanStatus');
 const scanLine     = document.getElementById('scanLine');
 
-// ═══════════════════════════════════════════════════════════
-// STATION UI
-// ═══════════════════════════════════════════════════════════
+// ── Station UI ──
 function updateStationUI() {
-  const stText   = document.getElementById('stationText');
-  const camBadge = document.getElementById('camBadge');
-  if (selectedStation) {
-    const txt = (selectedStation.emoji || '🏫') + ' ' + selectedStation.station_name;
-    stText.textContent = camBadge.textContent = txt;
-  } else {
-    stText.textContent   = '👇 เลือกฐานก่อน';
-    camBadge.textContent = 'ยังไม่เลือกฐาน';
-  }
+  const stText = document.getElementById('stationText'), cb = document.getElementById('camBadge');
+  if (selectedStation) { const t = (selectedStation.emoji||'🏫')+' '+selectedStation.station_name; stText.textContent = cb.textContent = t; }
+  else { stText.textContent = '👇 เลือกฐานก่อน'; cb.textContent = 'ยังไม่เลือกฐาน'; }
 }
-
 function renderStations() {
   const grid = document.getElementById('stationsGrid');
-  if (!stations.length) {
-    grid.innerHTML = '<div class="no-station">ไม่พบฐาน — ตรวจสอบ GAS URL แล้วกด รีโหลด</div>';
-    return;
-  }
+  if (!stations.length) { grid.innerHTML = '<div class="no-station">ไม่พบฐาน — ตรวจสอบ GAS URL แล้วกด รีโหลด</div>'; return; }
   grid.innerHTML = stations.map(st => {
-    const active = selectedStation && selectedStation.station_id === st.station_id;
-    return `<button class="station-btn${active ? ' active' : ''}"
-      onclick="selectStation('${String(st.station_id).replace(/'/g, "\\'")}')">
-      <div class="st-emoji">${st.emoji || '🏫'}</div>
-      <div class="st-name">${st.station_name}</div>
-      <div class="st-id">${st.station_id}</div>
+    const a = selectedStation && selectedStation.station_id === st.station_id;
+    return `<button class="station-btn${a?' active':''}" onclick="selectStation('${String(st.station_id).replace(/'/g,"\\'")}')">
+      <div class="st-emoji">${st.emoji||'🏫'}</div><div class="st-name">${st.station_name}</div><div class="st-id">${st.station_id}</div>
     </button>`;
   }).join('');
   document.getElementById('hint').textContent = `🎯 พบ ${stations.length} ฐาน`;
 }
-
-window.selectStation = function (station_id) {
-  selectedStation = stations.find(s => s.station_id === station_id) || null;
-  shownDupWarning.clear(); // reset เมื่อเปลี่ยนฐาน
-  updateStationUI();
-  renderStations();
-  toast('เลือกฐาน: ' + (selectedStation?.station_name || ''), 'ok');
-  window.scrollTo({ top: 0, behavior: 'smooth' });
+window.selectStation = function(id) {
+  selectedStation = stations.find(s => s.station_id === id) || null;
+  shownDupWarning.clear(); updateStationUI(); renderStations();
+  toast('เลือกฐาน: '+(selectedStation?.station_name||''), 'ok');
+  window.scrollTo({ top:0, behavior:'smooth' });
 };
-
 async function loadStations() {
   try {
-    const r = await gsGetStations();
-    if (!r || !r.success) throw new Error('stations failed');
+    const r = await gsGetStations(); if (!r?.success) throw new Error('fail');
     stations = r.stations || [];
-    if (selectedStation && !stations.find(s => s.station_id === selectedStation.station_id))
-      selectedStation = null;
-    updateStationUI();
-    renderStations();
-    if (r.server_time) {
-      document.getElementById('serverTimeEl').textContent = 'Server: ' + r.server_time;
-    }
-  } catch (e) {
-    toast('โหลดฐานไม่สำเร็จ', 'err');
-    document.getElementById('stationsGrid').innerHTML =
-      '<div class="no-station">❌ โหลดไม่สำเร็จ ตรวจสอบการ Deploy GAS</div>';
-    console.error(e);
+    if (selectedStation && !stations.find(s=>s.station_id===selectedStation.station_id)) selectedStation = null;
+    updateStationUI(); renderStations();
+    if (r.server_time) document.getElementById('serverTimeEl').textContent = 'Server: '+r.server_time;
+  } catch(e) {
+    toast('โหลดฐานไม่สำเร็จ','err');
+    document.getElementById('stationsGrid').innerHTML = '<div class="no-station">❌ โหลดไม่สำเร็จ ตรวจสอบการ Deploy GAS</div>';
   }
 }
 
-// ═══════════════════════════════════════════════════════════
-// MULTI-ENGINE SCANNER
-// รองรับ: iOS Safari · Android Chrome/Samsung · iPad · PC
-// Engine 1: BarcodeDetector (Chrome/Edge/Android — เร็วสุด)
-// Engine 2: html5-qrcode    (iOS Safari · ทุกอุปกรณ์)
-// Engine 3: ZXing            (fallback สุดท้าย)
-// ═══════════════════════════════════════════════════════════
-
+// ── Multi-Engine Scanner ──
 async function openCamera() {
   if (scanning) return;
-  if (!selectedStation) { toast('กรุณาเลือกฐานก่อน', 'warn'); return; }
-  if (!window.isSecureContext) { toast('ต้องเปิดผ่าน https เท่านั้น', 'err'); return; }
+  if (!selectedStation) { toast('กรุณาเลือกฐานก่อน','warn'); return; }
+  if (!window.isSecureContext) { toast('ต้องเปิดผ่าน https เท่านั้น','err'); return; }
+  setStatus('🟡','กำลังเปิดกล้อง...'); scanStatusEl.textContent = '⏳ กำลังเปิดกล้อง...';
 
-  setStatus('🟡', 'กำลังเปิดกล้อง...');
-  scanStatusEl.textContent = '⏳ กำลังเปิดกล้อง...';
+  const isDesktop = !/Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
-  // ─── ลองทุก engine ตามลำดับ ───
-  if (await tryHtml5Qrcode()) return;
-  if (await tryZxing())       return;
-  if (await tryGetUserMedia()) return;
-
-  // ล้มเหลวทั้งหมด
-  setStatus('🔴', 'ไม่รองรับ');
-  scanStatusEl.textContent = '❌ ไม่สามารถเปิดกล้องได้';
-  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-  if (isIOS) {
-    toast('กรุณาเปิดด้วย Safari และอนุญาตกล้อง', 'err');
+  if (isDesktop) {
+    // PC: ใช้ getUserMedia + jsQR โดยตรง — เชื่อถือได้ที่สุด
+    if (await tryGetUserMedia()) return;
   } else {
-    toast('ไม่สามารถเปิดกล้องได้ — ตรวจสอบสิทธิ์กล้อง', 'err');
+    // มือถือ/แท็บเล็ต: ลอง html5-qrcode → ZXing → getUserMedia
+    if (await tryHtml5Qrcode()) return;
+    if (await tryZxing())       return;
+    if (await tryGetUserMedia()) return;
   }
+
+  setStatus('🔴','ไม่รองรับ'); scanStatusEl.textContent = '❌ ไม่สามารถเปิดกล้องได้';
+  toast(isDesktop
+    ? 'ไม่สามารถเปิดกล้องได้ — ตรวจสอบสิทธิ์กล้องใน browser'
+    : 'กรุณาเปิดด้วย Safari/Chrome และอนุญาตกล้อง', 'err');
 }
 
-// ─── Engine 1: html5-qrcode (รองรับดีที่สุดบน iOS + Android) ───
 async function tryHtml5Qrcode() {
   if (typeof Html5Qrcode === 'undefined') return false;
   try {
-    if (html5Scanner) {
-      try { if (html5Scanner.isScanning) await html5Scanner.stop(); } catch(e){}
-      try { html5Scanner.clear(); } catch(e){}
-      html5Scanner = null;
-    }
-    // ล้าง div ก่อน inject ใหม่
-    const readerDiv = document.getElementById('qr-reader');
-    if (readerDiv) readerDiv.innerHTML = '';
-
-    html5Scanner = new Html5Qrcode('qr-reader', {
-      verbose: false,
-      experimentalFeatures: { useBarCodeDetectorIfSupported: true }
-    });
-
-    // ลอง environment ก่อน ถ้าไม่ได้ลอง user
-    const cameras = await Html5Qrcode.getCameras().catch(() => []);
-    let cameraConfig = { facingMode: 'environment' };
-
-    // ถ้ามีรายการกล้อง เลือกกล้องหลัง (back)
-    if (cameras.length > 0) {
-      const backCam = cameras.find(c =>
-        /back|rear|environment|หลัง/i.test(c.label)
-      );
-      if (backCam) cameraConfig = backCam.id;
-      else if (cameras.length > 1) cameraConfig = cameras[cameras.length - 1].id;
-      else cameraConfig = cameras[0].id;
-    }
-
-    const isDesktop = !/Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-
-    await html5Scanner.start(
-      cameraConfig,
-      {
-        fps: isDesktop ? 25 : 20,
-        qrbox: (w, h) => {
-          // PC: กรอบสแกนใหญ่ขึ้น | มือถือ: 72% ของหน้าจอ
-          const s = isDesktop
-            ? Math.min(w, h) * 0.85
-            : Math.min(w, h) * 0.72;
-          return { width: Math.floor(s), height: Math.floor(s) };
-        },
-        // ไม่ใส่ aspectRatio — ให้ browser จัดการเอง (แก้จอมืด PC)
-        disableFlip: false,
-        rememberLastUsedCamera: true,
-        videoConstraints: isDesktop
-          ? { width:{ideal:1280}, height:{ideal:720}, frameRate:{ideal:30} }
-          : { facingMode:'environment', width:{ideal:1280}, height:{ideal:720} },
-      },
-      async (text) => {
-        if (text?.trim()) await handleDecoded(text.trim());
-      },
-      (_err) => {}
-    );
-
-    // รอให้ video render ก่อนแสดง (แก้ปัญหาจอมืดชั่วคราว)
-    await new Promise(res => setTimeout(res, 500));
-
-    scanning = true;
-    if (scanLine) scanLine.style.display = 'block';
-    setStatus('🟢', 'พร้อมสแกน');
-    scanStatusEl.textContent = '🔍 กำลังสแกน...';
-    toast('เปิดกล้องแล้ว', 'ok');
-    return true;
-
+    if (html5Scanner) { try{if(html5Scanner.isScanning)await html5Scanner.stop();}catch(e){} try{html5Scanner.clear();}catch(e){} html5Scanner=null; }
+    const rd = document.getElementById('qr-reader'); if (rd) rd.innerHTML = '';
+    html5Scanner = new Html5Qrcode('qr-reader',{verbose:false,experimentalFeatures:{useBarCodeDetectorIfSupported:true}});
+    const cams = await Html5Qrcode.getCameras().catch(()=>[]);
+    let cfg = { facingMode:'environment' };
+    if (cams.length>0) { const b=cams.find(c=>/back|rear|environment|หลัง/i.test(c.label)); if(b) cfg=b.id; else if(cams.length>1) cfg=cams[cams.length-1].id; else cfg=cams[0].id; }
+    const isD = !/Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+    await html5Scanner.start(cfg, {
+      fps:isD?25:20,
+      qrbox:(w,h)=>{const s=isD?Math.min(w,h)*.85:Math.min(w,h)*.72;return{width:Math.floor(s),height:Math.floor(s)};},
+      disableFlip:false, rememberLastUsedCamera:true,
+      videoConstraints:isD?{width:{ideal:1280},height:{ideal:720},frameRate:{ideal:30}}:{facingMode:'environment',width:{ideal:1280},height:{ideal:720}},
+    }, async(text)=>{ if(text?.trim()) await handleDecoded(text.trim()); }, ()=>{});
+    await new Promise(r=>setTimeout(r,500));
+    scanning=true; if(scanLine) scanLine.style.display='block';
+    setStatus('🟢','พร้อมสแกน'); scanStatusEl.textContent='🔍 กำลังสแกน...'; toast('เปิดกล้องแล้ว','ok'); return true;
   } catch(e) {
-    console.warn('html5-qrcode failed:', e?.message || e);
-    try { if (html5Scanner) { html5Scanner.clear(); html5Scanner = null; } } catch(_){}
-    // แจ้งเฉพาะ permission error
-    if (/NotAllowed|permission|denied/i.test(String(e))) {
-      toast('กรุณาอนุญาตกล้อง: กด 🔒 → Camera → Allow', 'err');
-      scanStatusEl.textContent = '❌ ไม่ได้รับอนุญาตกล้อง';
-      setStatus('🔴', 'ไม่ได้รับอนุญาต');
-      return true; // หยุดลอง engine อื่น
-    }
+    try{if(html5Scanner){html5Scanner.clear();html5Scanner=null;}}catch(_){}
+    if (/NotAllowed|permission|denied/i.test(String(e))) { toast('กรุณาอนุญาตกล้อง: กด 🔒 → Camera → Allow','err'); scanStatusEl.textContent='❌ ไม่ได้รับอนุญาตกล้อง'; setStatus('🔴','ไม่ได้รับอนุญาต'); return true; }
     return false;
   }
 }
 
-// ─── Engine 2: ZXing (fallback สำหรับเบราว์เซอร์เก่า) ───
 async function tryZxing() {
   if (typeof ZXingBrowser === 'undefined') return false;
   try {
     zxingReader = new ZXingBrowser.BrowserQRCodeReader();
-    const devices = await ZXingBrowser.BrowserCodeReader.listVideoInputDevices();
-    const backDev = devices.find(d => /back|rear|environment/i.test(d.label)) || devices[0];
-    const deviceId = backDev?.deviceId;
-
-    const readerDiv = document.getElementById('qr-reader');
-    if (readerDiv) {
-      readerDiv.innerHTML = '';
-      const v = document.createElement('video');
-      v.id = 'zxing-video';
-      v.autoplay = true; v.playsInline = true; v.muted = true;
-      readerDiv.appendChild(v);
-    }
-    const videoElem = document.getElementById('zxing-video');
-    await zxingReader.decodeFromVideoDevice(deviceId, videoElem, async (result, err) => {
-      if (!scanning) return;
-      if (result) await handleDecoded(result.getText().trim());
-    });
-
-    scanning = true;
-    if (scanLine) scanLine.style.display = 'block';
-    setStatus('🟢', 'พร้อมสแกน (ZXing)');
-    scanStatusEl.textContent = '🔍 กำลังสแกน...';
-    toast('เปิดกล้องแล้ว', 'ok');
-    return true;
-  } catch(e) {
-    console.warn('ZXing failed:', e?.message || e);
-    try { if (zxingReader) zxingReader.reset(); zxingReader = null; } catch(_){}
-    return false;
-  }
+    const devs = await ZXingBrowser.BrowserCodeReader.listVideoInputDevices();
+    const back = devs.find(d=>/back|rear|environment/i.test(d.label))||devs[0];
+    const rd = document.getElementById('qr-reader');
+    if (rd) { rd.innerHTML=''; const v=document.createElement('video'); v.id='zxing-video'; v.autoplay=true; v.playsInline=true; v.muted=true; rd.appendChild(v); }
+    await zxingReader.decodeFromVideoDevice(back?.deviceId, document.getElementById('zxing-video'), async(res,err)=>{ if(!scanning)return; if(res) await handleDecoded(res.getText().trim()); });
+    scanning=true; if(scanLine) scanLine.style.display='block';
+    setStatus('🟢','พร้อมสแกน'); scanStatusEl.textContent='🔍 กำลังสแกน...'; toast('เปิดกล้องแล้ว','ok'); return true;
+  } catch(e) { try{if(zxingReader)zxingReader.reset();zxingReader=null;}catch(_){} return false; }
 }
 
-// ─── Engine 3: getUserMedia + BarcodeDetector + ZXing canvas (PC/fallback) ───
 async function tryGetUserMedia() {
   if (!navigator.mediaDevices?.getUserMedia) return false;
 
-  // PC ไม่มี environment camera → ลอง any ก่อน
   const isDesktop = !/Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-  const constraints = isDesktop
+
+  // constraints — PC ไม่มี facingMode
+  const cts = isDesktop
     ? [
-        { video: { width:{ideal:1280}, height:{ideal:720}, frameRate:{ideal:30} }, audio: false },
-        { video: { width:{ideal:640},  height:{ideal:480} }, audio: false },
-        { video: true, audio: false },
+        {video:{width:{ideal:1280},height:{ideal:720},frameRate:{ideal:30}},audio:false},
+        {video:{width:{ideal:640}, height:{ideal:480}},audio:false},
+        {video:true,audio:false}
       ]
     : [
-        { video: { facingMode:'environment', width:{ideal:1280}, height:{ideal:720} }, audio: false },
-        { video: { facingMode:'environment' }, audio: false },
-        { video: true, audio: false },
+        {video:{facingMode:'environment',width:{ideal:1280},height:{ideal:720}},audio:false},
+        {video:{facingMode:'environment'},audio:false},
+        {video:true,audio:false}
       ];
 
   let stream = null;
-  for (const c of constraints) {
+  let lastErr = null;
+  for (const c of cts) {
     try { stream = await navigator.mediaDevices.getUserMedia(c); break; }
-    catch(e) { stream = null; }
+    catch(e) { lastErr = e; stream = null; }
   }
-  if (!stream) return false;
 
-  // inject video
-  const readerDiv = document.getElementById('qr-reader');
-  if (readerDiv) {
-    readerDiv.innerHTML = '';
+  if (!stream) {
+    if (/NotAllowed|denied/i.test(String(lastErr))) {
+      toast('กรุณาอนุญาตกล้อง: กด 🔒 → Camera → Allow','err');
+      setStatus('🔴','ไม่ได้รับอนุญาต'); return true; // หยุดลอง engine อื่น
+    }
+    return false;
+  }
+
+  // inject <video>
+  const rd = document.getElementById('qr-reader');
+  if (rd) {
+    rd.innerHTML = '';
     const v = document.createElement('video');
-    v.id = 'gum-video';
-    v.autoplay = true; v.playsInline = true; v.muted = true;
-    readerDiv.appendChild(v);
+    v.id='gum-video'; v.autoplay=true; v.playsInline=true; v.muted=true;
+    Object.assign(v.style, {
+      position:'absolute',top:'0',left:'0',
+      width:'100%',height:'100%',objectFit:'cover',borderRadius:'16px'
+    });
+    rd.appendChild(v);
   }
 
   const vid = document.getElementById('gum-video');
-  vid.srcObject = stream;
-  vid.muted = true;
-  await new Promise(res => {
-    vid.onloadedmetadata = () => res();
-    setTimeout(res, 4000);
-  });
-  await vid.play().catch(()=>{});
+  vid.srcObject = stream; vid.muted = true;
+  await new Promise(r => { vid.onloadedmetadata = () => r(); setTimeout(r, 5000); });
+  try { await vid.play(); } catch(e) {}
 
-  // ─── เลือก decoder ที่ดีที่สุดที่มี ───
-  // Priority: BarcodeDetector → ZXing → jsQR
-  let decoder = 'none';
+  // โหลด jsQR (ทำงานได้ทุก browser 100%)
+  try { await loadScript('https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js'); } catch(e){}
 
-  try {
-    nativeDetector = new BarcodeDetector({ formats:['qr_code'] });
-    decoder = 'barcode';
-    console.log('PC decoder: BarcodeDetector');
-  } catch(e) { nativeDetector = null; }
-
-  // ZXing reader สำหรับ canvas decode
-  let zxReader = null;
-  if (decoder === 'none' && typeof ZXingBrowser !== 'undefined') {
+  // ลอง BarcodeDetector (Chrome/Edge เท่านั้น — เร็วกว่า jsQR 3x)
+  let useBD = false;
+  if ('BarcodeDetector' in window) {
     try {
-      zxReader = new ZXingBrowser.BrowserQRCodeReader();
-      decoder = 'zxing-canvas';
-      console.log('PC decoder: ZXing canvas');
-    } catch(e) {}
+      nativeDetector = new BarcodeDetector({formats:['qr_code']});
+      // warmup — ถ้าใช้ไม่ได้จะ throw ตรงนี้
+      const test = await nativeDetector.detect(vid);
+      useBD = true;
+      console.log('[Scanner] BarcodeDetector ready');
+    } catch(e) {
+      nativeDetector = null; useBD = false;
+      console.log('[Scanner] BarcodeDetector failed, use jsQR');
+    }
+  } else {
+    console.log('[Scanner] jsQR ready');
   }
 
-  // jsQR (load dynamically ถ้าไม่มีตัวอื่น)
-  if (decoder === 'none' && typeof jsQR === 'undefined') {
-    try {
-      await loadScript('https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js');
-      decoder = 'jsqr';
-      console.log('PC decoder: jsQR');
-    } catch(e) {}
-  } else if (decoder === 'none' && typeof jsQR !== 'undefined') {
-    decoder = 'jsqr';
-  }
-
+  // เตรียม canvas
   scanCanvas = document.createElement('canvas');
-  scanCtx    = scanCanvas.getContext('2d', { willReadFrequently: true });
+  scanCtx    = scanCanvas.getContext('2d', {willReadFrequently:true});
 
   scanning = true;
   if (scanLine) scanLine.style.display = 'block';
-  setStatus('🟢', 'พร้อมสแกน');
+  setStatus('🟢','พร้อมสแกน');
   scanStatusEl.textContent = '🔍 กำลังสแกน...';
-  toast('เปิดกล้องแล้ว', 'ok');
+  toast('เปิดกล้องแล้ว 📷','ok');
 
-  let processing = false;
-  let frameCount = 0;
+  let busy = false;
 
   const loop = async () => {
     if (!scanning) return;
 
-    frameCount++;
-    // BarcodeDetector: ทุก frame  |  ZXing/jsQR: ทุก 3 frame (ลด CPU)
-    const interval = (decoder === 'barcode') ? 1 : 3;
-
-    if (frameCount % interval === 0 && !processing && vid.readyState >= 2) {
-      processing = true;
+    if (!busy && vid.readyState >= 2 && vid.videoWidth > 0) {
+      busy = true;
       try {
-        const vw = vid.videoWidth  || 640;
-        const vh = vid.videoHeight || 480;
-
-        if (decoder === 'barcode') {
-          // ── BarcodeDetector (Chrome/Edge) ──
+        if (useBD) {
+          // ─── BarcodeDetector (Chrome/Edge) ───
           const codes = await nativeDetector.detect(vid);
           if (codes?.length) await handleDecoded(codes[0].rawValue.trim());
 
-        } else if (decoder === 'zxing-canvas' && zxReader) {
-          // ── ZXing decode จาก canvas ──
-          scanCanvas.width  = vw;
-          scanCanvas.height = vh;
-          scanCtx.drawImage(vid, 0, 0, vw, vh);
-          try {
-            const result = await zxReader.decodeFromCanvas(scanCanvas);
-            if (result) await handleDecoded(result.getText().trim());
-          } catch(e) { /* ไม่เจอ QR — ปกติ */ }
+        } else if (typeof jsQR !== 'undefined') {
+          // ─── jsQR ───
+          // resize ลงเหลือ max 640px เพื่อ decode เร็ว
+          const vw = vid.videoWidth, vh = vid.videoHeight;
+          const maxDim = 640;
+          const scale  = Math.min(1, maxDim / Math.max(vw, vh));
+          const dw = Math.max(1, Math.floor(vw * scale));
+          const dh = Math.max(1, Math.floor(vh * scale));
 
-        } else if (decoder === 'jsqr') {
-          // ── jsQR (Firefox/Safari PC) ──
-          scanCanvas.width  = vw;
-          scanCanvas.height = vh;
-          scanCtx.drawImage(vid, 0, 0, vw, vh);
-          const imgData = scanCtx.getImageData(0, 0, vw, vh);
-          const code    = jsQR(imgData.data, vw, vh, { inversionAttempts: 'dontInvert' });
+          scanCanvas.width  = dw;
+          scanCanvas.height = dh;
+          scanCtx.drawImage(vid, 0, 0, dw, dh);
+          const pix = scanCtx.getImageData(0, 0, dw, dh);
+
+          // ลอง 2 แบบ: ปกติ + invert (รองรับ QR สีขาวบนดำ และดำบนขาว)
+          let code = jsQR(pix.data, dw, dh, {inversionAttempts:'dontInvert'});
+          if (!code) code = jsQR(pix.data, dw, dh, {inversionAttempts:'onlyInvert'});
           if (code?.data) await handleDecoded(code.data.trim());
         }
       } catch(e) {}
-      processing = false;
+      busy = false;
     }
 
     rafId = requestAnimationFrame(loop);
   };
-  rafId = requestAnimationFrame(loop);
 
+  rafId = requestAnimationFrame(loop);
   window.__gumStream = stream;
   return true;
 }
 
-// โหลด script แบบ dynamic
 function loadScript(src) {
-  return new Promise((resolve, reject) => {
-    if (document.querySelector('script[src="' + src + '"]')) return resolve();
-    const s = document.createElement('script');
-    s.src = src; s.onload = resolve; s.onerror = reject;
-    document.head.appendChild(s);
-  });
+  return new Promise((res,rej)=>{ if(document.querySelector('script[src="'+src+'"]'))return res(); const s=document.createElement('script');s.src=src;s.onload=res;s.onerror=rej;document.head.appendChild(s); });
 }
 
 async function closeCamera() {
-  scanning = false;
-  torchOn  = false;
-  if (scanLine) scanLine.style.display = 'none';
-  scanStatusEl.textContent = '⏸ หยุดสแกน';
-  setStatus('🟢', 'พร้อม');
-
-  // หยุด html5-qrcode
-  if (html5Scanner) {
-    try { if (html5Scanner.isScanning) await html5Scanner.stop(); } catch(e){}
-    try { html5Scanner.clear(); } catch(e){}
-    html5Scanner = null;
-  }
-  // หยุด ZXing
-  if (zxingReader) { try { zxingReader.reset(); } catch(e){} zxingReader = null; }
-  // หยุด getUserMedia
-  if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
-  if (window.__gumStream) {
-    try { window.__gumStream.getTracks().forEach(t=>t.stop()); } catch(e){}
-    window.__gumStream = null;
-  }
-  // ล้าง div
-  const readerDiv = document.getElementById('qr-reader');
-  if (readerDiv) readerDiv.innerHTML = '';
-
-  toast('ปิดกล้องแล้ว', 'ok');
+  scanning=false; torchOn=false;
+  if(scanLine) scanLine.style.display='none'; scanStatusEl.textContent='⏸ หยุดสแกน'; setStatus('🟢','พร้อม');
+  if(html5Scanner){try{if(html5Scanner.isScanning)await html5Scanner.stop();}catch(e){}try{html5Scanner.clear();}catch(e){}html5Scanner=null;}
+  if(zxingReader){try{zxingReader.reset();}catch(e){}zxingReader=null;}
+  if(rafId){cancelAnimationFrame(rafId);rafId=null;}
+  if(window.__gumStream){try{window.__gumStream.getTracks().forEach(t=>t.stop());}catch(e){}window.__gumStream=null;}
+  const rd=document.getElementById('qr-reader');if(rd)rd.innerHTML='';
+  toast('ปิดกล้องแล้ว','ok');
 }
 
 async function toggleTorch() {
-  if (!scanning) { toast('เปิดกล้องก่อน', 'warn'); return; }
-  try {
-    // html5-qrcode v2.3+
-    if (html5Scanner?.getRunningTrackCameraCapabilities) {
-      const cap = html5Scanner.getRunningTrackCameraCapabilities();
-      if (cap?.torchFeature?.()?.isSupported()) {
-        torchOn = !torchOn;
-        await cap.torchFeature().apply(torchOn);
-        toast(torchOn ? '🔦 เปิดไฟ' : '🔦 ปิดไฟ', 'ok');
-        return;
-      }
-    }
-    // getUserMedia track
-    if (window.__gumStream) {
-      const track = window.__gumStream.getVideoTracks()[0];
-      const cap2  = track?.getCapabilities?.() || {};
-      if (cap2.torch) {
-        torchOn = !torchOn;
-        await track.applyConstraints({ advanced: [{ torch: torchOn }] });
-        toast(torchOn ? '🔦 เปิดไฟ' : '🔦 ปิดไฟ', 'ok');
-        return;
-      }
-    }
-    toast('อุปกรณ์นี้ไม่รองรับไฟฉาย', 'warn');
-  } catch(e) { toast('เปิด/ปิดไฟไม่สำเร็จ', 'err'); }
+  if(!scanning){toast('เปิดกล้องก่อน','warn');return;}
+  try{
+    if(html5Scanner?.getRunningTrackCameraCapabilities){const cap=html5Scanner.getRunningTrackCameraCapabilities();if(cap?.torchFeature?.()?.isSupported()){torchOn=!torchOn;await cap.torchFeature().apply(torchOn);toast(torchOn?'🔦 เปิดไฟ':'🔦 ปิดไฟ','ok');return;}}
+    if(window.__gumStream){const tr=window.__gumStream.getVideoTracks()[0];const c=tr?.getCapabilities?.()|| {};if(c.torch){torchOn=!torchOn;await tr.applyConstraints({advanced:[{torch:torchOn}]});toast(torchOn?'🔦 เปิดไฟ':'🔦 ปิดไฟ','ok');return;}}
+    toast('อุปกรณ์นี้ไม่รองรับไฟฉาย','warn');
+  }catch(e){toast('เปิด/ปิดไฟไม่สำเร็จ','err');}
 }
+function initScannerEngines(){}function startScanLoop(){}function stopScanLoop(){}
 
-// dummy (ไม่ใช้แล้ว)
-function initScannerEngines() {}
-function startScanLoop() {}
-function stopScanLoop() {}
-
-// ═══════════════════════════════════════════════════════════
-// CHECK-IN — ส่ง POST ไปหา GAS
-// ═══════════════════════════════════════════════════════════
+// ── Check-in ──
 async function handleDecoded(qr) {
   const now = Date.now();
-  // ลด debounce จาก 2500ms → 1500ms เพื่อความเร็ว
-  if (lastHit.qr === qr && (now - lastHit.t) < 1500) return;
-  lastHit = { qr, t: now };
-  if (!selectedStation) { toast('ยังไม่เลือกฐาน', 'warn'); return; }
-
+  if (lastHit.qr===qr && (now-lastHit.t)<1500) return;
+  lastHit = { qr, t:now };
+  if (!selectedStation) { toast('ยังไม่เลือกฐาน','warn'); return; }
   scanStatusEl.textContent = `🔄 พบ: ${qr} กำลังบันทึก...`;
-
   let res;
-  try {
-    res = await gsCheckin({
-      qr_code:    qr,
-      station_id: selectedStation.station_id,
-      device:     navigator.userAgent
-    });
-  } catch (e) {
-    console.error(e);
-    toast('บันทึกไม่สำเร็จ (network error)', 'err');
-    scanStatusEl.textContent = '❌ บันทึกไม่สำเร็จ';
-    return;
-  }
-
+  try { res = await gsCheckin({ qr_code:qr, station_id:selectedStation.station_id, device:navigator.userAgent }); }
+  catch(e) { toast('บันทึกไม่สำเร็จ (network error)','err'); scanStatusEl.textContent='❌ บันทึกไม่สำเร็จ'; return; }
   if (!res?.success) {
-    const errMap = {
-      STUDENT_NOT_FOUND: 'ไม่พบรหัสนักเรียน: ' + qr,
-      STATION_NOT_FOUND: 'ไม่พบฐานกิจกรรม',
-      MISSING_DATA:      'ข้อมูลไม่ครบ',
-    };
-    toast(errMap[res?.error] || 'บันทึกไม่สำเร็จ', 'err');
-    scanStatusEl.textContent = '❌ ' + (errMap[res?.error] || 'บันทึกไม่สำเร็จ');
-    return;
+    const em = { STUDENT_NOT_FOUND:'ไม่พบรหัสนักเรียน: '+qr, STATION_NOT_FOUND:'ไม่พบฐานกิจกรรม', MISSING_DATA:'ข้อมูลไม่ครบ' };
+    toast(em[res?.error]||'บันทึกไม่สำเร็จ','err'); scanStatusEl.textContent='❌ '+(em[res?.error]||'บันทึกไม่สำเร็จ'); return;
   }
-
   const firstName = res.student?.first_name || qr;
-  const timeStr   = res.server_time ? ` (${res.server_time})` : '';
+  const lastName  = res.student?.last_name  || '';
+  const fullName  = (firstName+' '+lastName).trim();
+  const timeStr   = res.server_time || '';
 
   if (res.duplicate) {
-    toast(`${firstName} เช็คอินแล้ว`, 'warn');
-    scanStatusEl.textContent = `🔄 ${firstName} เช็คอินแล้ว${timeStr}`;
+    toast(`${firstName} เช็คอินแล้ว`,'warn');
+    scanStatusEl.textContent = `🔄 ${firstName} เช็คอินแล้ว${timeStr?' ('+timeStr+')':''}`;
   } else {
-    toast(`ยินดีต้อนรับ ${firstName} 🎉`, 'ok');
-    scanStatusEl.textContent = `✅ สำเร็จ: ${firstName}${timeStr}`;
-    const wrap = document.getElementById('camWrap');
-    wrap.classList.add('flash-ok');
-    setTimeout(() => wrap.classList.remove('flash-ok'), 700);
+    // ✅ เปิด fullscreen notification
+    showSuccess(fullName, selectedStation.station_name, timeStr);
+    scanStatusEl.textContent = `✅ สำเร็จ: ${firstName}${timeStr?' ('+timeStr+')':''}`;
   }
 }
 
-// ═══════════════════════════════════════════════════════════
-// MANUAL INPUT
-// ═══════════════════════════════════════════════════════════
-function openManual() {
-  if (!selectedStation) { toast('เลือกฐานก่อน', 'warn'); return; }
-  document.getElementById('manualModal').classList.add('open');
-  const inp = document.getElementById('manualInput');
-  inp.value = '';
-  setTimeout(() => inp.focus(), 120);
-}
-function closeManual() { document.getElementById('manualModal').classList.remove('open'); }
-async function submitManual() {
-  const v = document.getElementById('manualInput').value.trim().toUpperCase();
-  if (!v) return;
-  closeManual();
-  await handleDecoded(v);
-}
+// ── Manual ──
+function openManual(){ if(!selectedStation){toast('เลือกฐานก่อน','warn');return;} document.getElementById('manualModal').classList.add('open'); const i=document.getElementById('manualInput');i.value='';setTimeout(()=>i.focus(),120); }
+function closeManual(){ document.getElementById('manualModal').classList.remove('open'); }
+async function submitManual(){ const v=document.getElementById('manualInput').value.trim().toUpperCase();if(!v)return;closeManual();await handleDecoded(v); }
 
-// ═══════════════════════════════════════════════════════════
-// SUMMARY
-// ═══════════════════════════════════════════════════════════
+// ── Summary ──
 async function openSummary() {
   document.getElementById('summaryModal').classList.add('open');
-  document.getElementById('summaryContent').innerHTML =
-    '<div style="text-align:center;padding:24px">⏳ กำลังโหลด...</div>';
+  document.getElementById('summaryContent').innerHTML='<div style="text-align:center;padding:24px">⏳ กำลังโหลด...</div>';
   try {
-    const data = await gsGetFullStats();
-    if (!data?.success) throw new Error('stats fail');
-    const st = data.stations || [];
-    let html = `
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px">
-        <div style="background:#f3e8ff;border-radius:14px;padding:12px;text-align:center">
-          <div style="font-size:1.5rem;font-weight:900;color:var(--purple)">${data.total}</div>
-          <div style="font-size:.75rem;color:var(--muted)">เช็คอินทั้งหมด</div>
-        </div>
-        <div style="background:#dcfce7;border-radius:14px;padding:12px;text-align:center">
-          <div style="font-size:1.5rem;font-weight:900;color:#16a34a">${data.uniqueStudents}</div>
-          <div style="font-size:.75rem;color:var(--muted)">ผู้เข้าร่วม</div>
-        </div>
-        <div style="background:#dbeafe;border-radius:14px;padding:12px;text-align:center">
-          <div style="font-size:1.5rem;font-weight:900;color:var(--indigo)">${st.length}</div>
-          <div style="font-size:.75rem;color:var(--muted)">ฐานกิจกรรม</div>
-        </div>
-      </div>`;
-    st.forEach(s => {
-      const pct = data.total > 0 ? Math.round((s.count / data.total) * 100) : 0;
-      html += `
-        <div style="background:#f8fafc;border-radius:14px;padding:12px;margin-bottom:8px;border:2px solid var(--border)">
-          <div style="display:flex;justify-content:space-between;align-items:center">
-            <b>${s.emoji || '🏫'} ${s.station_name}</b>
-            <span style="font-size:.72rem;color:var(--muted)">${s.station_id}</span>
-          </div>
-          <div style="margin-top:8px;background:#e2e8f0;border-radius:999px;height:8px;overflow:hidden">
-            <div style="width:${pct}%;height:100%;background:linear-gradient(90deg,var(--purple),var(--pink));border-radius:999px;transition:width .5s"></div>
-          </div>
-          <div style="display:flex;justify-content:space-between;margin-top:5px;font-size:.75rem">
-            <span>เช็คอิน: <b>${s.count}</b></span>
-            <span>ไม่ซ้ำ: <b>${s.uniqueStudents}</b></span>
-            <span style="color:var(--muted)">${pct}%</span>
-          </div>
-        </div>`;
-    });
-    if (data.checkins?.length) {
-      html += `
-        <div style="font-weight:800;margin:12px 0 8px;font-size:.9rem">📋 รายการล่าสุด 50 รายการ</div>
-        <div style="overflow-x:auto">
-        <table style="width:100%;border-collapse:collapse;font-size:.78rem">
-          <thead><tr style="background:#f3e8ff">
-            <th style="padding:8px;text-align:left;border-radius:8px 0 0 0">เวลา</th>
-            <th style="padding:8px;text-align:left">ชื่อ-สกุล</th>
-            <th style="padding:8px;text-align:left">ชั้น/ห้อง</th>
-            <th style="padding:8px;text-align:left;border-radius:0 8px 0 0">ฐาน</th>
-          </tr></thead>
-          <tbody>${data.checkins.slice(-50).reverse().map(c => `
-            <tr style="border-bottom:1px solid #f1f5f9">
-              <td style="padding:7px 8px">${c.time}</td>
-              <td style="padding:7px 8px;font-weight:700">${c.name}</td>
-              <td style="padding:7px 8px">${c.grade}/${c.room}</td>
-              <td style="padding:7px 8px">${c.station_id}</td>
-            </tr>`).join('')}
-          </tbody>
-        </table></div>`;
-    }
-    document.getElementById('summaryContent').innerHTML = html;
-  } catch (e) {
-    console.error(e);
-    document.getElementById('summaryContent').innerHTML =
-      '<div style="text-align:center;color:#dc2626;font-weight:800;padding:24px">❌ โหลดสถิติไม่สำเร็จ</div>';
-  }
+    const data=await gsGetFullStats();if(!data?.success)throw new Error('fail');
+    const st=data.stations||[];
+    let html=`<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px">
+      <div style="background:#f3e8ff;border-radius:14px;padding:12px;text-align:center"><div style="font-size:1.5rem;font-weight:900;color:var(--purple)">${data.total}</div><div style="font-size:.75rem;color:var(--muted)">เช็คอินทั้งหมด</div></div>
+      <div style="background:#dcfce7;border-radius:14px;padding:12px;text-align:center"><div style="font-size:1.5rem;font-weight:900;color:#16a34a">${data.uniqueStudents}</div><div style="font-size:.75rem;color:var(--muted)">ผู้เข้าร่วม</div></div>
+      <div style="background:#dbeafe;border-radius:14px;padding:12px;text-align:center"><div style="font-size:1.5rem;font-weight:900;color:var(--indigo)">${st.length}</div><div style="font-size:.75rem;color:var(--muted)">ฐานกิจกรรม</div></div>
+    </div>`;
+    st.forEach(s=>{const p=data.total>0?Math.round(s.count/data.total*100):0;html+=`<div style="background:#f8fafc;border-radius:14px;padding:12px;margin-bottom:8px;border:2px solid var(--border)"><div style="display:flex;justify-content:space-between"><b>${s.emoji||'🏫'} ${s.station_name}</b><span style="font-size:.72rem;color:var(--muted)">${s.station_id}</span></div><div style="margin-top:8px;background:#e2e8f0;border-radius:999px;height:8px;overflow:hidden"><div style="width:${p}%;height:100%;background:linear-gradient(90deg,var(--purple),var(--pink));border-radius:999px"></div></div><div style="display:flex;justify-content:space-between;margin-top:5px;font-size:.75rem"><span>เช็คอิน: <b>${s.count}</b></span><span>ไม่ซ้ำ: <b>${s.uniqueStudents}</b></span><span>${p}%</span></div></div>`;});
+    if(data.checkins?.length){html+=`<div style="font-weight:800;margin:12px 0 8px">📋 รายการล่าสุด 50 รายการ</div><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:.78rem"><thead><tr style="background:#f3e8ff"><th style="padding:8px;text-align:left">เวลา</th><th style="padding:8px;text-align:left">ชื่อ-สกุล</th><th style="padding:8px;text-align:left">ชั้น/ห้อง</th><th style="padding:8px;text-align:left">ฐาน</th></tr></thead><tbody>${data.checkins.slice(-50).reverse().map(c=>`<tr style="border-bottom:1px solid #f1f5f9"><td style="padding:7px 8px">${c.time}</td><td style="padding:7px 8px;font-weight:700">${c.name}</td><td style="padding:7px 8px">${c.grade}/${c.room}</td><td style="padding:7px 8px">${c.station_id}</td></tr>`).join('')}</tbody></table></div>`;}
+    document.getElementById('summaryContent').innerHTML=html;
+  }catch(e){document.getElementById('summaryContent').innerHTML='<div style="text-align:center;color:#dc2626;font-weight:800;padding:24px">❌ โหลดสถิติไม่สำเร็จ</div>';}
 }
-function closeSummary() { document.getElementById('summaryModal').classList.remove('open'); }
+function closeSummary(){ document.getElementById('summaryModal').classList.remove('open'); }
 
-// ═══════════════════════════════════════════════════════════
-// QR GENERATOR
-// ═══════════════════════════════════════════════════════════
-let allStudents = [];
-
-function openQr() {
+// ── QR Generator ──
+let allStudents=[];
+function openQr(){
   document.getElementById('qrModal').classList.add('open');
   document.getElementById('qrPreviewBox').classList.remove('open');
-  document.getElementById('qrPreview').innerHTML = '';
-  document.getElementById('qrList').innerHTML =
-    '<div style="grid-column:1/-1;text-align:center;padding:20px">⏳ กำลังโหลด...</div>';
-
-  gsGetStudents().then(r => {
-    if (!r?.success) throw new Error('fail');
-    allStudents = r.students || [];
-    renderQrList(allStudents);
-    toast('โหลดรายชื่อแล้ว', 'ok');
-  }).catch(e => {
-    console.error(e);
-    document.getElementById('qrList').innerHTML =
-      '<div style="grid-column:1/-1;text-align:center;color:#dc2626;font-weight:800;padding:16px">❌ โหลดรายชื่อไม่สำเร็จ</div>';
-  });
+  document.getElementById('qrPreview').innerHTML='';
+  document.getElementById('qrList').innerHTML='<div style="grid-column:1/-1;text-align:center;padding:20px">⏳ กำลังโหลด...</div>';
+  gsGetStudents().then(r=>{if(!r?.success)throw new Error('fail');allStudents=r.students||[];renderQrList(allStudents);toast('โหลดรายชื่อแล้ว','ok');}).catch(()=>{document.getElementById('qrList').innerHTML='<div style="grid-column:1/-1;text-align:center;color:#dc2626;font-weight:800;padding:16px">❌ โหลดรายชื่อไม่สำเร็จ</div>';});
 }
-function closeQr() { document.getElementById('qrModal').classList.remove('open'); }
-
-function renderQrList(list) {
-  const box = document.getElementById('qrList');
-  if (!list.length) {
-    box.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:var(--muted);font-weight:700;padding:16px">ไม่พบข้อมูล</div>';
-    return;
-  }
-  box.innerHTML = list.slice(0, 300).map(s => `
-    <button class="qr-item" onclick="previewQr('${String(s.qr_code).replace(/'/g, "\\'")}')">
-      <div class="qr-pill">${s.qr_code}</div>
-      <div class="qr-name">${s.first_name} ${s.last_name}</div>
-      <div class="qr-det">${s.grade ? 'ชั้น ' + s.grade : ''} ${s.room ? 'ห้อง ' + s.room : ''}</div>
-    </button>`).join('');
+function closeQr(){ document.getElementById('qrModal').classList.remove('open'); }
+function renderQrList(list){
+  const box=document.getElementById('qrList');
+  if(!list.length){box.innerHTML='<div style="grid-column:1/-1;text-align:center;color:var(--muted);font-weight:700;padding:16px">ไม่พบข้อมูล</div>';return;}
+  box.innerHTML=list.slice(0,300).map(s=>`<button class="qr-item" onclick="previewQr('${String(s.qr_code).replace(/'/g,"\\'")}')"><div class="qr-pill">${s.qr_code}</div><div class="qr-name">${s.first_name} ${s.last_name}</div><div class="qr-det">${s.grade?'ชั้น '+s.grade:''} ${s.room?'ห้อง '+s.room:''}</div></button>`).join('');
 }
-
-window.previewQr = function (code) {
-  const s = allStudents.find(x => x.qr_code === code);
-  if (!s) return;
-  const box = document.getElementById('qrPreviewBox');
-  box.classList.add('open');
-  const p = document.getElementById('qrPreview');
-  p.innerHTML = '';
-  new QRCode(p, { text: s.qr_code, width: 200, height: 200, correctLevel: QRCode.CorrectLevel.H });
-  document.getElementById('qrName').textContent    = `${s.first_name} ${s.last_name}`;
-  document.getElementById('qrDetail').textContent  = [
-    s.grade  ? 'ชั้น ' + s.grade    : '',
-    s.room   ? 'ห้อง ' + s.room    : '',
-    s.number ? 'เลขที่ ' + s.number : ''
-  ].filter(Boolean).join(' / ');
-  document.getElementById('qrCodeLabel').textContent = s.qr_code;
+window.previewQr=function(code){
+  const s=allStudents.find(x=>x.qr_code===code);if(!s)return;
+  document.getElementById('qrPreviewBox').classList.add('open');
+  const p=document.getElementById('qrPreview');p.innerHTML='';
+  new QRCode(p,{text:s.qr_code,width:200,height:200,correctLevel:QRCode.CorrectLevel.H});
+  document.getElementById('qrName').textContent=`${s.first_name} ${s.last_name}`;
+  document.getElementById('qrDetail').textContent=[s.grade?'ชั้น '+s.grade:'',s.room?'ห้อง '+s.room:'',s.number?'เลขที่ '+s.number:''].filter(Boolean).join(' / ');
+  document.getElementById('qrCodeLabel').textContent=s.qr_code;
 };
-
-document.getElementById('qrSearch').addEventListener('input', e => {
-  const q = (e.target.value || '').trim().toLowerCase();
-  renderQrList(allStudents.filter(s =>
-    !q ||
-    (s.qr_code    || '').toLowerCase().includes(q) ||
-    (s.first_name || '').toLowerCase().includes(q) ||
-    (s.last_name  || '').toLowerCase().includes(q)
-  ));
+document.getElementById('qrSearch').addEventListener('input',e=>{
+  const q=(e.target.value||'').trim().toLowerCase();
+  renderQrList(allStudents.filter(s=>!q||(s.qr_code||'').toLowerCase().includes(q)||(s.first_name||'').toLowerCase().includes(q)||(s.last_name||'').toLowerCase().includes(q)));
 });
 
-// ═══════════════════════════════════════════════════════════
-// EVENT LISTENERS
-// ═══════════════════════════════════════════════════════════
-document.getElementById('btnReload').addEventListener('click', loadStations);
+// ── Events ──
+document.getElementById('btnReload').addEventListener('click',loadStations);
+document.getElementById('btnStart').addEventListener('click',async()=>{ await openCamera(); });
+document.getElementById('btnStop').addEventListener('click',closeCamera);
+document.getElementById('btnTorch').addEventListener('click',toggleTorch);
+document.getElementById('btnManual').addEventListener('click',openManual);
+document.getElementById('btnManualCancel').addEventListener('click',closeManual);
+document.getElementById('btnManualOK').addEventListener('click',submitManual);
+document.getElementById('manualInput').addEventListener('keydown',e=>{if(e.key==='Enter')submitManual();});
+document.getElementById('manualModal').addEventListener('click',e=>{if(e.target===e.currentTarget)closeManual();});
+document.getElementById('btnSummary').addEventListener('click',openSummary);
+document.getElementById('btnSummaryClose').addEventListener('click',closeSummary);
+document.getElementById('summaryModal').addEventListener('click',e=>{if(e.target===e.currentTarget)closeSummary();});
+document.getElementById('btnGenQR').addEventListener('click',openQr);
+document.getElementById('btnQrClose').addEventListener('click',closeQr);
+document.getElementById('qrModal').addEventListener('click',e=>{if(e.target===e.currentTarget)closeQr();});
 
-document.getElementById('btnStart').addEventListener('click', async () => {
-  await openCamera();
-});
-document.getElementById('btnStop').addEventListener('click', closeCamera);
-document.getElementById('btnTorch').addEventListener('click', toggleTorch);
-
-document.getElementById('btnManual').addEventListener('click', openManual);
-document.getElementById('btnManualCancel').addEventListener('click', closeManual);
-document.getElementById('btnManualOK').addEventListener('click', submitManual);
-document.getElementById('manualInput').addEventListener('keydown', e => { if (e.key === 'Enter') submitManual(); });
-document.getElementById('manualModal').addEventListener('click', e => { if (e.target === e.currentTarget) closeManual(); });
-
-document.getElementById('btnSummary').addEventListener('click', openSummary);
-document.getElementById('btnSummaryClose').addEventListener('click', closeSummary);
-document.getElementById('summaryModal').addEventListener('click', e => { if (e.target === e.currentTarget) closeSummary(); });
-
-document.getElementById('btnGenQR').addEventListener('click', openQr);
-document.getElementById('btnQrClose').addEventListener('click', closeQr);
-document.getElementById('qrModal').addEventListener('click', e => { if (e.target === e.currentTarget) closeQr(); });
-
-// ── Init ──
-(async () => {
-  hideLoading();
-  await loadStations();
-  toast('พร้อมใช้งานแล้ว 🎉', 'ok');
-})();
+(async()=>{ hideLoading(); await loadStations(); toast('พร้อมใช้งานแล้ว 🎉','ok'); })();
 </script>
 </body>
 </html>
